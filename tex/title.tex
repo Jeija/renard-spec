@@ -1,0 +1,39 @@
+\newcommand*{\titleheadvar}{
+	\begin{textblock*}{\columnwidth}(1.75cm,25.4cm)
+		\textsf{First presented at}\\[0.1cm]
+		\begin{minipage}[c]{0.45\columnwidth}
+			\includegraphics[width=3.1cm]{fig/35c3}
+		\end{minipage}
+	\end{textblock*}
+
+	\begin{textblock*}{\columnwidth}(16cm,25.5cm)
+		\begin{minipage}[c]{0.45\columnwidth}
+			\includegraphics[width=3.1cm]{fig/renard}
+		\end{minipage}
+	\end{textblock*}
+}
+
+\titlehead{\titleheadvar}
+
+\subject{\vspace{-0.5cm}\Version}
+\title{\Title}
+\author{\Author\\
+	\vspace*{0.4cm}
+	\includegraphics[height=7cm]{fig/TitleImage}\vspace*{0.5cm}
+}
+
+\date{
+	\begin{tabular}{r>{\raggedright} p{5cm}}
+		Contributors: & Felix Fellhauer \\ Marc Gauger \tabularnewline
+	\end{tabular}
+	\vspace{0.2cm}
+	\begin{tabular}{>{\centering\arraybackslash}p{10cm}}
+		\begin{justify}
+			\footnotesize The authors are not affiliated with Sigfox in any way.
+			All specifications in this documents are either based on publicly available information
+			or on own observations of Sigfox radio traffic.
+		\end{justify}
+	\end{tabular}
+}
+
+\maketitle

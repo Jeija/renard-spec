@@ -1,0 +1,33 @@
+\chapter*{}
+\begin{otherlanguage}{ngerman}
+
+\vspace{-0.5cm}
+
+\section*{Kurzfassung}
+\Glspl{lpwan} sind eine schnell wachsende Zukunftstechnologie im Bereich des Internet of Things (\glsunset{iot}\gls{iot}) und stellen Internetzugriff für eine neue Klasse günstiger, häufig batteriebetriebener \gls{iot}-Geräte bereit.
+Zwar versprechen diese Netwerke Verbesserungen im Bereich Sicherheit (\textit{Security}), die Standards sind jedoch häufig nichtöffentlich und proprietär, sodass kaum Details bekannt sind, wie diese Versprechungen umgesetzt werden.
+Dieses Dokument analysiert Uplink und Downlink des proprietären \gls{lpwan}-Protokolls ``Sigfox'' und stellt Spezifikationen bereit, sodass deren Prüfung durch unabhängige Sicherheitsforscher ermöglicht wird.
+Die einzelnen Aspekte des Sigfox-Protokolls werden beleuchtet, deren Gestaltung wird kritisch evaluiert und Verbesserungsansätze werden vorgeschlagen.
+Zudem präsentiert diese Arbeit eine Referenzimplementierung eines alternativen Sigfox-Protokollstapels, bestehend aus einer Programmbibliothek \texttt{librenard} und einem Kommandozeilenprogramm \texttt{renard}.
+Eine vorläufige Einschätzung der Sicherheit des Sigfox-Protokolls zeigt, dass, wie von Sigfox versprochen, die Authentizität von Nachrichten überprüft wird.
+Der Schutz der Vertraulichkeit der übertragenen Daten wird allerdings nicht gewährleistet.
+
+\glsreset{lpwan}
+\glsreset{iot}
+\end{otherlanguage}
+
+\vspace{-0.5cm}
+
+\section*{Abstract}
+\Glspl{lpwan} are a rapidly growing technology within the field of \gls{iot}, providing connectivity to a new range of inexpensive low-power \gls{iot} devices and promising enhanced security.
+However, their protocol designs including their physical layer implementations are often closed and proprietary, therefore details on the respective security architectures are sparse.
+This document analyzes the radio protocol of the \gls{lpwan} network ``Sigfox'' in both uplink and downlink and provides specifications, enabling audits by independent security researchers.
+Protocol design choices are critically evaluated and possible improvements are suggested.
+Moreover, an open reference implementation of an alternative Sigfox network stack consisting of an embeddable library \texttt{librenard} and a command-line front end \texttt{renard} is presented.
+Preliminary security assessments show that, as promised by Sigfox, message authenticity is verified, but confidentiality is not protected.
+
+\glsreset{lpwan}
+\glsreset{iot}
+
+\vfill
+\textbf{Title page image:} Depiction of common use cases for Sigfox in health, agriculture, logistics and industry automation and basic network topology (star topology with cloud back end). Sigfox's official logo is depicted inside the cloud.

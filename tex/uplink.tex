@@ -1,0 +1,1730 @@
+\chapter{Uplink: Object to Base Station}
+\label{sec:uplink}
+\FloatBarrier
+\section{Physical Layer}
+The Sigfox uplink uses \gls{dbpsk} modulation on the physical layer which is based on \gls{bpsk}, where \gls{bpsk} is a special case of the digital modulation scheme \gls{psk}.
+The focus of this chapter will be on those modulation / demodulation details that are uncommon or specific to the Sigfox uplink while more standard techniques will not be discussed in detail.
+Sigfox objects have to be able to generate and transmit uplinks, while base stations only require the ability to decode uplink frames.
+
+\subsection{Introduction}
+\subsubsection{DBPSK Modulation}
+When using \gls{psk}, amplitude and frequency of the transmitted radio wave remain constant, whereas the phase of the wave is modulated.
+Only a finite number of phase angles are valid and correspond to predefined symbols.
+According to the number $M$ of valid phase angles, different \gls{psk} types with distinct constellation diagrams (called $M$-\gls{psk}) can be distinguished.
+
+In the simple case of $2$-\gls{psk}, also known as \gls{bpsk}, only two constellation points are valid: One with a $0^\circ$ phase shift and another with a $180^\circ$ phase shift.
+This constellation is equivalent to that of binary \gls{pam}.
+A \gls{bpsk}-modulated signal with rectangular baseband pulses (that is, the phase shift occurs immediately without special pulse shaping) is visualized in \Cref{fig:bpsk_demo}.
+
+Unfortunately, demodulation of \gls{psk} signals at the receiver requires estimation of the non-shifted carrier phase since the receiver needs to decide which absolute phase a given symbol corresponds to.
+This makes the receiver architecture more complicated and prone to errors.
+As a solution, the information can alternatively be encoded in the relative phase shift of the radio signal over a sampling interval instead of the absolute phase.
+In this modulation method, commonly known as \gls{dpsk}, the receiver compares the angle of the previous symbol with the current symbol's angle and determines the associated symbol from the difference.
+
+Again, different \gls{dpsk} types with various numbers of valid signal shifts $M$ can be distinguished and are called $M$-\gls{dpsk}.
+A type of \gls{dpsk} with only two valid relative phase shifts ($0^\circ$ and $+180^\circ$) is known as \gls{dbpsk} and is visualized in \Cref{fig:dbpsk_demo}.
+The additional robustness of \gls{dbpsk} over \gls{bpsk} comes at the price of requiring a higher \gls{snr}.
+For typical error probabilities below $10^{-4}$, however, the difference in required SNR between \gls{dbpsk} and \gls{bpsk} is less than $1 \mathrm{dB}$ \cite[Section 8.6.5]{commsys}, which makes \gls{dbpsk} a reasonable choice.
+
+\begin{figure}[h]
+\begin{subfigure}[c]{1.0\textwidth}
+\begin{tikzpicture}
+\begin{axis}[
+	axis lines = left,
+	xlabel = $t \cdot R_S$,
+	ylabel = {$s(t) / \hat s$},
+	yticklabels = {,-1, 0, 1},
+	xticklabels = {,0,1,2,3,4,5,6,7,8},
+	width = 15cm,
+	height = 4cm,
+	every axis plot/.append style = {thick},
+	%axis x line = center,
+	xmax = 6.5,
+	ymax = 1.9,
+	ymin = -1.1,
+	every axis x label/.style = {
+		at={(ticklabel* cs:1.02)},
+		anchor=west,
+	}
+]
+	\addplot [
+		domain = -10:-8,
+		samples = 100,
+		color = blue!50!black
+	] {sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -8:-6,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -6:-4,
+		samples = 100,
+		color = blue!50!black
+	] {sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -4:-2,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -2:0,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -2:0,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = 0:2,
+		samples = 100,
+		color = blue!50!black
+	] {sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = 2:4,
+		samples = 100,
+		color = blue!50!black
+	] {sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = 4:6,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+
+	\fill [fill = red, opacity = 0.15] (axis cs: -10, -1.1) rectangle (axis cs: -8, 2);
+	\fill [fill = green, opacity = 0.15] (axis cs: -8, -1.1) rectangle (axis cs: -6, 2);
+	\fill [fill = red, opacity = 0.15] (axis cs: -6, -1.1) rectangle (axis cs: -4, 2);
+	\fill [fill = green, opacity = 0.15] (axis cs: -4, -1.1) rectangle (axis cs: -2, 2);
+	\fill [fill = green, opacity = 0.15] (axis cs: -2, -1.1) rectangle (axis cs: 0, 2);
+	\fill [fill = red, opacity = 0.15] (axis cs: 0, -1.1) rectangle (axis cs: 2, 2);
+	\fill [fill = red, opacity = 0.15] (axis cs: 2, -1.1) rectangle (axis cs: 4, 2);
+	\fill [fill = green, opacity = 0.15] (axis cs: 4, -1.1) rectangle (axis cs: 6, 2);
+
+	\node [color = red!50!black] at (axis cs: -9, 1.5) {0};
+	\node [color = green!50!black] at (axis cs: -7, 1.5) {1};
+	\node [color = red!50!black] at (axis cs: -5, 1.5) {0};
+	\node [color = green!50!black] at (axis cs: -3, 1.5) {1};
+	\node [color = green!50!black] at (axis cs: -1, 1.5) {1};
+	\node [color = red!50!black] at (axis cs: 1, 1.5) {0};
+	\node [color = red!50!black] at (axis cs: 3, 1.5) {0};
+	\node [color = green!50!black] at (axis cs: 5, 1.5) {1};
+	\end{axis}
+\end{tikzpicture}
+\caption{Interpretation of $s(t)$ as a \gls{bpsk}-modulated signal}
+\label{fig:bpsk_demo}
+\end{subfigure}
+\begin{subfigure}[c]{1.0\textwidth}
+\begin{tikzpicture}
+\begin{axis}[
+	axis lines = left,
+	xlabel = $t \cdot R_S$,
+	ylabel = {$s(t) / \hat s$},
+	yticklabels = {,-1, 0, 1},
+	xticklabels = {,0,1,2,3,4,5,6,7,8},
+	width = 15cm,
+	height = 4cm,
+	every axis plot/.append style = {thick},
+	%axis x line = center,
+	xmax = 6.5,
+	ymax = 1.9,
+	ymin = -1.1,
+	every axis x label/.style = {
+		at={(ticklabel* cs:1.02)},
+		anchor=west,
+	}
+]
+	\addplot [
+		domain = -10:-8,
+		samples = 100,
+		color = blue!50!black
+	] {sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -8:-6,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -6:-4,
+		samples = 100,
+		color = blue!50!black
+	] {sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -4:-2,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -2:0,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = -2:0,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = 0:2,
+		samples = 100,
+		color = blue!50!black
+	] {sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = 2:4,
+		samples = 100,
+		color = blue!50!black
+	] {sin(2 * pi * 2 * deg(x))};
+	\addplot [
+		domain = 4:6,
+		samples = 100,
+		color = blue!50!black
+	] {-sin(2 * pi * 2 * deg(x))};
+
+	\draw [thick, color = red!50!black] (axis cs: -8, 0) -- (axis cs: -8, 1.0);
+	\draw [thick, color = red!50!black] (axis cs: -6, 0) -- (axis cs: -6, 1.0);
+	\draw [thick, color = red!50!black] (axis cs: -4, 0) -- (axis cs: -4, 1.0);
+	\draw [thick, color = green!50!black] (axis cs: -2, 0) -- (axis cs: -2, 1.0);
+	\draw [thick, color = red!50!black] (axis cs: 0, 0) -- (axis cs: 0, 1.0);
+	\draw [thick, color = green!50!black] (axis cs: 2, 0) -- (axis cs: 2, 1.0);
+	\draw [thick, color = red!50!black] (axis cs: 4, 0) -- (axis cs: 4, 1.0);
+
+	\node [color = red!50!black] at (axis cs: -8, 1.5) {0};
+	\node [color = red!50!black] at (axis cs: -6, 1.5) {0};
+	\node [color = red!50!black] at (axis cs: -4, 1.5) {0};
+	\node [color = green!50!black] at (axis cs: -2, 1.5) {1};
+	\node [color = red!50!black] at (axis cs: 0, 1.5) {0};
+	\node [color = green!50!black] at (axis cs: 2, 1.5) {1};
+	\node [color = red!50!black] at (axis cs: 4, 1.5) {0};
+	\end{axis}
+\end{tikzpicture}
+\caption{Interpretation of $s(t)$ as \gls{dbpsk}-modulated signal where a phase shift of $180^\circ$ corresponds to ``0'' and no phase shift corresponds to ``1''}
+\label{fig:dbpsk_demo}
+\end{subfigure}
+\caption{Illustrations of the same passband signal $s(t)$, interpreted as \gls{bpsk} and \gls{dbpsk}. For demonstration purposes, a very low carrier frequency in reference to the symbol rate is shown.}
+\end{figure}
+
+\subsubsection{Costas Loops}
+A problem that arises with \gls{unb} technology is that minimal frequency deviations $f_{\mathrm{off}}$ between receiver's and transmitter's oscillator, also known as the non-ideality called \gls{cfo}, lead to large phase offsets $\varphi_{\mathrm{inc}}$ between symbols \cite[Section 3.1]{phyandmac}.
+This is due to the very low symbol rate $R_s$:
+\begin{equation}
+	\varphi_{\mathrm{inc}} = 2 \pi ~ \frac{f_{\mathrm{off}}}{R_s}
+\end{equation}
+For instance, a small frequency offset of just $f_{\mathrm{off}} = 25 \mathrm{Hz}$ at a symbol rate of $R_s = 100 ~\mathrm{Bd}$ (typical for Sigox in Europe) leads to a phase offset of $\varphi_{\mathrm{inc}} = 90^\circ$ per symbol, which makes decoding impossible.
+One countermeasure already presented is the use of DBPSK over BPSK so that phase offsets do not accumulate over time.
+That might not be enough though: The transmitter's or receiver's local oscillator frequency could be not stable enough to maintain a constant frequency over the duration of a single frame.
+Therefore, a traditional demodulator using a constant-frequency mixer cannot be used in those cases.
+Instead, a Costas loop that takes advantage of some properties of DBPSK modulation, may be implemented.
+
+A block diagram of a Costas loop is depicted in \Cref{fig:costasloop}.
+The basic objective of the Costas loop is to estimate the DBPSK input signal's carrier frequency $f_c$ and the carrier phase $\hat \varphi$.
+The reconstructed carrier signal is generated by a \gls{vco} and mixed with the input signal.
+If the Costas loop has locked onto the DBPSK signal's carrier, it provides the in-phase (I component) baseband signal as an output $u_\mathrm{BB}(t)$.
+
+\begin{figure}[h]
+	\centering
+	\begin{circuitikz}
+		\coordinate (src) at (2, 0);
+		\coordinate (topright) at (12, 3);
+		\coordinate (bottomright) at (12, -3);
+		\coordinate (M3Pos) at (12, 0);
+		\coordinate (LoopFilterPos) at (9.5, 0);
+		\coordinate (VCOPos) at (6.5, 0);
+
+		% Mixers with input
+		\draw (0, 0) node (input) {$s_{\mathrm{IF}}(t)$};
+		\draw (input) -- (src) node[circ] {};
+
+		\draw (4,  3) node[mixer] (M1) {} ++ (0,  0.85) node {Mixer};
+		\draw (4, -3) node[mixer] (M2) {} ++ (0, -0.85) node {Mixer};
+
+		\draw (src) |- (M1.1) node[inputarrow] {};
+		\draw (src) |- (M2.1) node[inputarrow] {};
+
+		% Low pass filters
+		\draw (M1.3) to[lowpass, l=LPF] (topright);
+		\draw (M2.3) to[lowpass, l=LPF] (bottomright);
+
+		% Third mixer
+		\node (M3) at (M3Pos) [mixer] {};
+		\draw (topright) -- (M3.4) node[inputarrow, rotate = -90] {};
+		\draw (bottomright) -- (M3.2) node[inputarrow, rotate = 90] {};
+
+		% Feedback branch
+		\node (LoopFilter) at (LoopFilterPos) [rectangle, draw, thick, minimum height = 1.3cm, minimum width = 2cm] {\begin{tabular}{c} Loop \\ Filter \end{tabular}};
+		\node (VCO) at (VCOPos) [rectangle, draw, thick, minimum width = 2cm, minimum height = 1.3cm] {VCO};
+		\draw (M3.1) -- (LoopFilter.east) node[inputarrow, rotate = 180] {} node[midway, above] {$e(t)$};
+		\draw (LoopFilter.west) -- (VCO.east) node[inputarrow, rotate = 180] {};
+
+		\draw (VCO.west) ++ (0, -0.4) -| (M2.4) node[inputarrow, rotate = -90] {};
+		\draw (VCO.west) ++ (0,  0.4) -| (M1.2) node[inputarrow, rotate = 90] {};
+		\node at (M2.4) [xshift = 1.6cm, yshift =  0.5cm] {$\sin(2 \pi f_c \cdot t + \hat \varphi)$};
+		\node at (M1.2) [xshift = 1.6cm, yshift = -0.5cm] {$\cos(2 \pi f_c \cdot t + \hat \varphi)$};
+
+		% Output signal
+		\draw (topright) node[circ] {} -- ++(1, 0) node[inputarrow] {} node [xshift = 1cm] {$u_\mathrm{BB}(t)$};
+	\end{circuitikz}
+	\caption{Block diagram of a Costas loop with input signal $s_\mathrm{IF}(t)$ and in-phase baseband signal $u_\mathrm{BB}(t)$}
+	\label{fig:costasloop}
+\end{figure}
+
+While the complete mathematical description of a Costas loop is left to additional literature \cite[page 457]{commsys} \cite{costasloops}, an intuitive understanding of the basic idea will be presented in the following.
+The fundamental property of DBPSK modulation utilized by a Costas loop is that, when interpreting DBPSK as a special case of digital \gls{qam}, the complex baseband signal only has an in-phase component while the quadrature component should always remain zero.
+Hence, if any quadrature component is present and assuming that noise can be neglected, a phase offset exists.
+\Cref{fig:costas_constellation} shows several points sampled in the complex baseband with an obvious phase offset of $\varphi_\mathrm{off} = 30^\circ$.
+
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}
+		\coordinate (origin) at (0, 0);
+
+		\draw [->] (0, -3) -- (0, 3) node [above] {Q} coordinate (qaxis);
+		\draw [->] (-3, 0) -- (3, 0) node [right] {I} coordinate (iaxis);
+		\draw (2, 0.06) -- (2, -0.06) node[below] {\footnotesize 1};
+		\draw (-0.06, 2) -- (0.06, 2) node[right = 0] {\footnotesize 1};
+		\node [below = 0.06cm, xshift = 6pt] at (0, 0) {\footnotesize 0};
+
+		\draw [dashed] (-3, -1.5) -- (3, 1.5) coordinate (offsetline);
+
+		\draw ( 2,  1  ) node[circle, fill, color = blue, scale = 0.5] {};
+		\draw (-2, -1  ) node[circle, fill, color = blue, scale = 0.5] {};
+		\draw (-1, -0.5) node[circle, fill, color = blue, scale = 0.5] {};
+		\draw ( 1,  0.5) node[circle, fill, color = blue, scale = 0.5] {};
+		\draw ( 0,  0  ) node[circle, fill, color = blue, scale = 0.5] {};
+
+		\path pic [draw, ->, "$\varphi_\mathrm{off}$", angle eccentricity = 1.25, angle radius = 1.5cm] {angle = iaxis--origin--offsetline};
+	\end{tikzpicture}
+	\caption{Constellation diagram containing some sampling points of the complex baseband of a DBPSK-modulated signal with a $\varphi_\mathrm{off} = 30^\circ$ phase offset. Noise is assumed to be negligible. Some samples are recorded outside the sampling interval.}
+	\label{fig:costas_constellation}
+\end{figure}
+
+For a \gls{dbpsk} baseband sample with an amplitude $a(t)$, but a phase offset $\varphi_\mathrm{off}$, the I/Q components may be written as
+\begin{align}
+\begin{split}
+	i(t) &= a(t) \cdot \cos(\varphi_\mathrm{off}) \\
+	q(t) &= a(t) \cdot \sin(\varphi_\mathrm{off})
+\end{split}
+\end{align}
+
+The mixer in the feedback loop of the Costas loop now calculates an error signal $e(t)$ as the product of I and Q component
+\begin{align}
+\begin{split}
+	e(t)	&= i(t) \cdot q(t) \\
+		&= a(t) \cdot \cos(\varphi_\mathrm{off}) \cdot a(t) \cdot \sin(\varphi_\mathrm{off}) \\
+		&= a(t)^2 \cdot \frac{1}{2} \left(\sin(\varphi_\mathrm{off} - \varphi_\mathrm{off}) + \sin(\varphi_\mathrm{off} + \varphi_\mathrm{off}) \right) \\
+		&= \frac{a(t)^2}{2} \cdot \sin(2 \cdot \varphi_\mathrm{off})
+\end{split}
+\end{align}
+
+This error signal is then filtered for noise reduction and fed into the \gls{vco} that provides the reconstructed carrier, which adjusts carrier phase and frequency accordingly.
+For the illustrated example of a $\varphi_\mathrm{off} = 30^\circ$ phase offset, the product of I and Q component and thus $e(t)$ is always positive, independently from $a(t)$.
+The appropriate response of the VCO to this phase offset is to increase the phase angle of the reconstructed carrier.
+Additionally, if a phase offset keeps occurring, this may also be a sign of a frequency offset.
+Since it is not enough to simply adjust the local phase in that case, the \gls{vco} also slightly adjusts the local oscillator frequency $f_c$ to account for a possible frequency offset.
+
+This way, the Costas loop will continually adjust phase and frequency until it has locked onto the received carrier, in which case $q(t) = 0$ and therefore $e(t) = 0$, so that the \gls{vco} maintains a constant phase offset and frequency.
+However, it is also possible for the Costas loop to lock onto a carrier phase shifted by $180^\circ$.
+This is not a problem if differential encoding, such as DBPSK, is applied, since the value of any bit only depends on the phase difference between two symbols, so that a constant phase angle offset of $180^\circ$ added to all symbols cancels out \cite[page 11]{costasloops}.
+
+\subsection{Implementation by Sigfox}
+Sigfox objects transmit their uplink frames in a license-free band.
+The specific frequency range, transmission power and symbol rate depend on local regulation.
+For instance, under \gls{etsi} regulations in Europe, the allocated uplink transmission band ranges from 868.0 to 868.6 MHz (see also \Cref{fig:srd_bands}), the maximum output power is 25 mW and the symbol rate is defined to be $100 ~ \mathrm{Bd}$.
+The reasoning for the usage of this very low symbol rate is that this makes the uplink signal bandwidth very narrow, which allows for a high concentration of the output power around a small frequency range thus increasing the transmission range (\gls{unb} technology).
+No matter the local regulation applied, \gls{dbpsk} modulation is used for the uplink \cite{sigfox_ietf}.
+
+Tests verified these official claims for the Sigfox version used in European regulatory zone (\gls{etsi} regulations).
+Furthermore, \gls{sdr} recordings show that a filter, probably a Gaussian filter, is applied to the baseband signal (see \Cref{fig:uplink_baseband}), most likely so that bandwidth constraints can be met, which in turn allows for greater power density while meeting maximum output power regulations.
+However, applying the Gaussian filter is not strictly necessary as Sigfox base stations accept uplink frames without filtering just fine.
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.9\textwidth]{fig/uplink_baseband.pdf}
+	\caption{I-component of the baseband signal of a single-bit Sigfox uplink, corresponding to the $u_\mathrm{BB}(t)$ output of the Costas loop. Note that transitions do not occur instantaneously, but are smoothed through Gaussian filtering.}
+	\label{fig:uplink_baseband}
+\end{figure}
+
+\subsection{Open Implementation}
+\label{sec:uplink_phy_reimp}
+This section is divided into two parts: First, code that can demodulate a given I/Q-sample recording of an uplink frame and return the bits contained in the frame and, secondly, code that can generate and transmit an uplink frame from a given string of bits. 
+
+Uplink frames can be captured with most commercially available \gls{sdr} hardware that can tune into the Sigfox uplink band: The constraints on the capture hardware imposed by the Sigfox standard are very low since only a very slow symbol rate is used.
+However, by default, the transmission frequency of the uplink frame is not constant, but randomly chosen before each transmission (see \Cref{sec:ul_repetitions}).
+To work around this issue, one can either capture the full uplink bandwidth and extract the uplink frame from the captured samples, or modify the Sigfox object to transmit at a constant frequency instead.
+Because capturing the full uplink bandwidth (0.6 MHz when using \gls{etsi} standard) is computationally more intensive and modifying the Sigfox transceiver (\textit{\textit{Pycom SiPy}}) was technically possible, the latter method was chosen.
+This has the additional benefit that the implementation of a demodulator for all three transmission repetitions (again, see \Cref{sec:ul_repetitions}) is easier, as it is enough to estimate the frequency only once for all repetitions if all three transmissions occur on the same frequency.
+Recording (e.g. using the GQRX software\footnote{\url{http://gqrx.dk/}}) produces an I/Q-sample WAV file containing the Sigfox transmission shifted by an \gls{if} as output.
+In other words, the recording is \textit{not} yet the baseband uplink signal, extracting that requires detecting the signal frequency, mixing and low pass filtering.
+
+\paragraph{For demodulation,} a python\footnote{\url{https://www.python.org/}} script that depends on NumPy\footnote{\url{https://www.numpy.org/}} and SciPy\footnote{\url{https://www.scipy.org/}} is used.
+In a first step, this script estimates the approximate frequency (relative to the WAV recording's \gls{if}) of the transmission (or all transmissions contained in the recording for that matter):
+Welch's method \cite{welchsmethod} is utilized to calculate the power density spectrum of the recording.
+Then, the frequency $f_0$ with the greatest power density is selected and used as the initial estimation for the transmission frequency.
+A programmatically implemented Costas loop is initialized with this frequency estimation $f_0$ as the Costas loop's initial \gls{vco} frequency $f_c$.
+By then feeding the recording's I/Q samples into the Costas loop, the baseband signal can be obtained at the loop's in-phase output $u_\mathrm{BB}(t)$.
+An example for a baseband signal generated this way can be seen in \Cref{fig:uplink_baseband}.
+Since the Costas loop can also lock onto a baseband shifted by $180^\circ$ in phase, the baseband signal might be inverted, which must be taken into account the third step, which is to detect the Sigfox uplink frame's preamble (see \Cref{sec:uplink_frameformat}).
+The method used for this is based on cross-correlation and is adapted so that multiple preambles corresponding to the first, second and third uplink transmission (see \Cref{sec:ul_repetitions}) can be detected at once.
+After correctly identifying all frame preambles and therefore the beginning of all frames in the baseband signal, samples for each symbol are taken and the differentials of the samples are calculated for \gls{dbpsk} demodulation.
+In the end, the python script outputs the detected Sigfox uplink frames in binary and hexadecimal format.
+
+\paragraph{For modulation,} a different python script takes the raw Sigfox uplink frame in hexadecimal format as an input and generates baseband samples as an output.
+Gaussian filtering, which the tested Sigfox objects make use of, is not applied by the python script.
+While this naturally causes a less compact spectrum according to the uncertainty principle, computation time is reduced and Sigfox base stations nevertheless accept the unfiltered signal.
+Baseband I/Q samples are written to a file at a sufficiently high sample rate for transmission with a \textit{HackRF One}\footnote{\url{https://greatscottgadgets.com/hackrf/}}.
+The python script takes care of executing the ``\texttt{hackrf\_transfer}'' command line utility for finally sending out the Sigfox uplink.
+The actual up-conversion, that is the mixing of the baseband signal with the carrier, then takes place in the \textit{HackRF One} itself.
+
+More information on the practical usage of the described demodulation script can be found in \Cref{sec:demodscripts}.
+Note that that demodulation / modulation has only been tested for Sigfox objects / base stations in Europe, which means that the Sigfox objects / \textit{HackRF One} were operated in the Sigfox mode conformant to \gls{etsi} regulations.
+
+\subsection{Result}
+Sigfox's claims \cite[Section 5.1.1]{sigfox_ietf} concerning the used modulation could be entirely verified for the \gls{etsi} region.
+With \gls{dbpsk}, Sigfox uses a very common modulation scheme with standard RF chips already available on the market.
+While modulation is easy to implement in either software or hardware, demodulation can be somewhat more challenging due to the unknown carrier frequency and low symbol rate, causing frequency offsets to accumulate quickly.
+Sigfox does not officially state if uplink processing occurs on the base station or if the whole uplink band is streamed to the cloud servers and processed there.
+However, internal photos of the \textit{SBS-T3} base station \cite{sbst3_internal} showing, among other components, 2 GB of RAM memory, power consumption measurements \cite[Table 5.3]{chalmers} and the fact that base station backhauling can occur using a 3G USB stick \cite[Section 3.1, interfaces]{sbst3_manual} and via satellite \cite[Section 4.1.2.1]{chalmers}, suggest that a significant portion of processing is implemented on the base station, with some processing steps possibly outsourced to the cloud.
+
+Further work in this area could be the implementation of a receiver system that automatically detects signal bursts within the multiplexed uplink band and automatically extracts useful Sigfox signals.
+The basic architecture of this method patented by Sigfox \gls{sa} is known, but it is not clear if it is actually in use in Sigfox base stations \cite{patent_multiplexband}.
+
+\FloatBarrier
+\section{Frame Structure}
+\label{sec:uplink_frameformat}
+\subsection{Introduction: MAC and CRC}
+\label{sec:uplink_mac_crc}
+\subsubsection{CRC Fundamentals}
+Since communication channels are inherently noisy, transmission errors occur and received data may be flawed \cite[Section 1.2.4]{ecctechniques}.
+Checksums can be used to detect random bit errors in received frames, they are, however, not suitable for protection against intentional (malicious) modification.
+\Gls{crc} is a common method for calculating such checksums of data.
+The \gls{crc} checksum for the data to be transmitted is typically calculated by the sender using a specific algorithm and then appended to the data frame.
+The receiver can then use this checksum to check if bit errors have occurred and either discard or accept the frame accordingly.
+Common lengths for this checksum are 8, 16 and 32 bits.
+\glspl{crc} are described in more detail in \Cref{sec:uplink_crc}.
+
+\subsubsection{MAC Tag Fundamentals}
+In some cases, maintaining data security is also a primary objective of a digital communication system.
+Three common goals of security in conjunction with communication systems are authenticity (ensuring a message was actually transmitted by the sender and not forged), integrity (ensuring a message was not maliciously altered in transit) and secrecy (also known as confidentiality, preventing eavesdropping) \cite[chapter 13, introduction]{carlson_commsys}.
+For integrity and authenticity checking, different mechanisms such as digital signatures or \glspl{mac} can be used.
+Sigfox uses the latter for both up- and downlink, which means that a secret key, in the case of Sigfox also known as \gls{nak} \cite[Section 2.2.2]{sigfox_secure}, is shared by both sender (Sigfox object) and receiver (Sigfox cloud).
+Sender and receiver use the same algorithm to calculate a so-called \gls{mac} tag that is again appended to the data frame.
+In contrast to \glspl{crc} though, not only the data to be integrity-checked is used as an input to the algorithm, but also the shared \gls{nak}.
+Since no one other than sender and receiver can know the \gls{nak}, the receiver can check whether a given message was transmitted by the sender (or, to be precise, it could also be forged by the receiver itself).
+More information on \glspl{mac} can be found in \Cref{sec:uplink_mac}.
+
+\subsection{Implementation by Sigfox}
+\label{sec:framestructure_realization}
+The Sigfox uplink frame structure has already been studied and published by a technology blogger \cite{disk91radioprotocol}.
+Alleged frame structures have also been published, among others, in an \gls{ietf} draft \cite{sigfox_ietf} and in a Rohde \& Schwarz application note \cite[Figure 1-2]{rs_appnote}.
+By recording and demodulating actual Sigfox uplinks generated using a Sigfox object, some of that information could be verified while other assertions are either wrong or not specific enough.
+
+\subsubsection{Overview}
+A Sigfox uplink consists of a single data frame that is transmitted either just once or three times with a different encoding each time.
+Since the frame structure of second and third transmission does not differ from the one of the first transmission, only the first transmission's structure and content will be discussed in the following unless otherwise stated.
+The encoding of the transmission repetitions will be discussed in \Cref{sec:ul_repetitions}.
+While the classical network layer distinction is not inherently given due to the primitive nature of the Sigfox network (see also \Cref{sec:uplink_frameformat_result}), in an attempt to have some layer distinction for practical purposes, the uplink will be partitioned into the ``frame'' and a contained ``packet''.
+The basic structure of any Sigfox uplink frame and descriptions for the particular fields are shown in \Cref{fig:uplinkframe_general}.
+
+\begin{figure}[h]
+\begin{subfigure}[c]{1.0\textwidth}
+	\def\fbitsize{0.14} % x-size of bit in frame
+	\def\pbitsize{0.12} % x-size of bit in packet
+	\def\lineheight{0.8}
+	\def\pktoffsety{-1.5}
+	\def\pktoffsetx{0.3}
+
+	\definecolor{packetcolor}{rgb}{0.9,1.0,0.8}
+	\definecolor{flagscolor}{rgb}{0.8,0.9,1.0}
+
+	\begin{tikzpicture}[font=\sffamily]
+		% Frame structure
+		\draw [fill=black, thick] (0,0) rectangle (20 * \fbitsize,\lineheight) node[pos=.5, color=white] {Preamble};
+		\draw [thick] (20 * \fbitsize,0) rectangle (32 * \fbitsize,\lineheight) node[pos=.5] {Type};
+		\draw [thick, fill=packetcolor] (32 * \fbitsize,0) rectangle (32 * \fbitsize + 8 * 8 * \fbitsize,\lineheight) node[pos=.5] {Packet};
+		\draw [thick] (32 * \fbitsize + 8 * 8 * \fbitsize,0) rectangle (32 * \fbitsize + 8 * 8 * \fbitsize + 16 * \fbitsize,\lineheight) node[pos=.5] {CRC-16};
+
+		% Frame bit numbers
+		\foreach \x in {0, 20, 32, 96} {
+			\draw [thick] (\x * \fbitsize, \lineheight) -- (\x * \fbitsize, \lineheight + 0.1);
+			\node [anchor=south west] at (\x * \fbitsize, \lineheight) {\x};
+		}
+
+		% Lines from frame to packet
+		\draw [thick] (32 * \fbitsize,0) -- (\pktoffsetx, \pktoffsety);
+		\draw [thick] (32 * \fbitsize + 8 * 8 * \fbitsize,0) -- (\pktoffsetx + 128 * \pbitsize, \pktoffsety);
+
+		% Packet format
+		\draw [thick, preaction={fill, flagscolor}, pattern=checkerboard, pattern color=packetcolor] (\pktoffsetx, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 4 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize F.};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 4 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 16 * \pbitsize, \pktoffsety) node[pos=.5] {SN};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 16 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 48 * \pbitsize, \pktoffsety) node[pos=.5] {ID};
+		\draw [thick, fill=packetcolor, dashed] (\pktoffsetx + 48 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 88 * \pbitsize, \pktoffsety) node[pos=.5] {Payload};
+		\draw [thick, fill=packetcolor, dashed] (\pktoffsetx + 88 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 128 * \pbitsize, \pktoffsety) node[pos=.5] {MAC};
+		\draw [thick] (\pktoffsetx + 48 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 128 * \pbitsize, \pktoffsety);
+		\draw [thick, decoration = {brace, mirror, raise = 5pt}, decorate] (\pktoffsetx + 48 * \pbitsize, \pktoffsety - \lineheight) -- node[below=7pt] {Variable length depending on type, 2 - 14 bytes in total} (\pktoffsetx + 128 * \pbitsize, \pktoffsety - \lineheight);
+
+		% Packet bit numbers
+		\foreach \x in {0, 4, 16, 48} {
+			\draw [thick] (\pktoffsetx + \x * \pbitsize, \pktoffsety) -- (\pktoffsetx + \x * \pbitsize, \pktoffsety + 0.1);
+			\node [fill=white, text opacity=1.0, fill opacity=0.8, anchor=south west] at (\pktoffsetx + \x * \pbitsize, \pktoffsety) {\x};
+		}
+
+		% Legend
+		\node [anchor=west] at (\pktoffsetx, \pktoffsety - \lineheight - 1) {SN = Sequence Number};
+		\node [anchor=west] at (\pktoffsetx, \pktoffsety - \lineheight - 1.5) {ID = Device ID};
+		\node [anchor=west] at (\pktoffsetx, \pktoffsety - \lineheight - 2) {F. = Flags};
+	\end{tikzpicture}
+\end{subfigure}
+\begin{subfigure}[c]{1.0\textwidth}
+	\centering
+	\begin{tabular}{r p{10cm}}
+		\textbf{Preamble} & Predefined pattern, \texttt{0b1010} repeated 5 times \\
+		\textbf{Type} & Type of packet (class and number of repetition) \\
+		\textbf{Flags} & Various uses: Number of bytes allocated for \gls{mac}, downlink request, single-bit message value \\
+		\textbf{Sequence Number} & Number that is incremented after each transmission, so that it is unique until it overflows \\
+		\textbf{Device ID} & 32-bit identifier that is preconfigured in every Sigfox object \\
+		\textbf{Payload} & Message to be transmitted, in plaintext \\
+		\textbf{MAC} & Message Authentication Code (variable length, 2 to 5 bytes) \\
+		\textbf{CRC-16} & 16-bit \gls{crc} checksum
+	\end{tabular}
+\end{subfigure}
+	\caption{Generic uplink frame structure, numbers in bits}
+	\label{fig:uplinkframe_general}
+\end{figure}
+
+
+The \textbf{length} of a Sigfox uplink and the \textbf{subdivision} of the frame fields for payload and \gls{mac} tag are variable.
+Two bytes are always reserved for the \gls{mac} tag field.
+Payloads, on the other hand, can consist of an arbitrary integer number of bytes between 1 and 12 bytes or alternatively comprise a single bit only.
+However, there are only five different possible frame lengths depending on something that will be called ``frame classes'' in this document:
+\begin{itemize}
+\item Class A: Frames for single-bit payloads
+\item Class B: Frames for single-byte payloads
+\item Class C: Frames for payload lengths between 2 and 4 bytes
+\item Class D: Frames for payload lengths between 5 and 8 bytes
+\item Class E: Frames for payload lengths between 9 and 12 bytes
+\end{itemize}
+If the length of the payload to be transmitted does not consume all space in the uplink frame of the appropriate frame class, the remaining bytes are used for a longer \gls{mac} tag.
+\Cref{fig:uplink_length_combinations} shows all possible payload lengths with resulting \gls{mac} tag and total packet lengths.
+Note that the nomenclature for frame fields and packet classes used by these reconstructed specifications is not prescribed by any public, official Sigfox documentation, but was inferred after successful protocol reconstruction for the purpose of easier, unified notation.
+Where reasonably possible, it is in accordance with the reverse engineering work conducted in \cite{disk91radioprotocol}.
+
+\begin{figure}[h]
+	\begin{subfigure}[t]{0.55\textwidth}
+		\vskip 0pt
+		\raggedleft
+		\renewcommand{\thempfootnote}{\fnsymbol{mpfootnote}}
+		\begin{tabular}{r | c c | l}
+			\multicolumn{3}{c|}{\textbf{Lengths [bytes]}} \\ \cline{1-3}
+			\textbf{Payload} & \textbf{\gls{mac}} & \textbf{\thead{Total Packet\\Length, Class}} & \textbf{\thead{MSBs of\\Flags}} \\ \hline
+			0 & 2 & 8, A & \texttt{0b1V}\footnote{Single bit message with \texttt{V} = value of single bit, ``1'' or ``0''} \\
+			1 & 2 & 9, B & \texttt{0b00} \\
+			2 & 4 & 12, C & \texttt{0b10} \\
+			3 & 3 & 12, C & \texttt{0b01} \\
+			4 & 2 & 12, C & \texttt{0b00} \\
+			5 & 5 & 16, D & \texttt{0b11} \\
+			6 & 4 & 16, D & \texttt{0b10} \\
+			7 & 3 & 16, D & \texttt{0b01} \\
+			8 & 2 & 16, D & \texttt{0b00} \\
+			9 & 5 & 20, E & \texttt{0b11} \\
+			10 & 4 & 20, E & \texttt{0b10} \\
+			11 & 3 & 20, E & \texttt{0b01} \\
+			12 & 2 & 20, E & \texttt{0b00} \\
+		\end{tabular}
+		\caption{All possible subdivisions in numbers and the two leftmost bits of the ``flags'' field}
+		\label{tab:frametype}
+	\end{subfigure}
+	\hspace{0.02\textwidth}
+	\begin{subfigure}[t]{0.40\textwidth}
+		\vspace{1.65cm}
+		\begin{tikzpicture}
+			\def\bytesize{0.3}
+			\def\lineheight{0.35}
+			\def\linedist{0.15}
+			\def\maxlen{14}
+			\def\yoffset{5}
+
+			\definecolor{maccolor}{rgb}{0.9,1.0,0.8}
+			\definecolor{payloadcolor}{rgb}{0.8,0.9,1.0}			
+
+			% "Reserved-for-MAC" section of packets
+			\foreach \y in {0,...,12} {
+				\fill ({(\maxlen -  2) * \bytesize}, {\y * (-\lineheight - \linedist)}) rectangle (\maxlen * \bytesize, {\y * (-\lineheight - \linedist) - \lineheight});
+			}
+
+			% Padded MAC section of packets
+			\fill [color=maccolor] ({(\maxlen - 2) * \bytesize}, 0) rectangle ({(\maxlen - 2) * \bytesize}, -1 * \lineheight);
+			\fill [color=maccolor] ({(\maxlen - 3) * \bytesize},  -1 * \lineheight -  1 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -2 * \lineheight -  1 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 4) * \bytesize},  -2 * \lineheight -  2 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -3 * \lineheight -  2 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 3) * \bytesize},  -3 * \lineheight -  3 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -4 * \lineheight -  3 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 2) * \bytesize},  -4 * \lineheight -  4 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -5 * \lineheight -  4 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 5) * \bytesize},  -5 * \lineheight -  5 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -6 * \lineheight -  5 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 4) * \bytesize},  -6 * \lineheight -  6 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -7 * \lineheight -  6 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 3) * \bytesize},  -7 * \lineheight -  7 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -8 * \lineheight -  7 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 2) * \bytesize},  -8 * \lineheight -  8 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -9 * \lineheight -  8 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 5) * \bytesize},  -9 * \lineheight -  9 * \linedist) rectangle ({(\maxlen - 2) * \bytesize}, -10 * \lineheight -  9 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 4) * \bytesize}, -10 * \lineheight - 10 * \linedist) rectangle ({(\maxlen - 2) * \bytesize}, -11 * \lineheight - 10 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 3) * \bytesize}, -11 * \lineheight - 11 * \linedist) rectangle ({(\maxlen - 2) * \bytesize}, -12 * \lineheight - 11 * \linedist);
+			\fill [color=maccolor] ({(\maxlen - 2) * \bytesize}, -12 * \lineheight - 12 * \linedist) rectangle ({(\maxlen - 2) * \bytesize}, -13 * \lineheight - 12 * \linedist);
+
+			% Payoad segmentection in packets
+			\draw [fill=payloadcolor] ({(\maxlen -  3) * \bytesize},  -1 * \lineheight -  1 * \linedist) rectangle ({(\maxlen - 3) * \bytesize},  -2 * \lineheight -  1 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen -  6) * \bytesize},  -2 * \lineheight -  2 * \linedist) rectangle ({(\maxlen - 4) * \bytesize},  -3 * \lineheight -  2 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen -  6) * \bytesize},  -3 * \lineheight -  3 * \linedist) rectangle ({(\maxlen - 3) * \bytesize},  -4 * \lineheight -  3 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen -  6) * \bytesize},  -4 * \lineheight -  4 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -5 * \lineheight -  4 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen - 10) * \bytesize},  -5 * \lineheight -  5 * \linedist) rectangle ({(\maxlen - 5) * \bytesize},  -6 * \lineheight -  5 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen - 10) * \bytesize},  -6 * \lineheight -  6 * \linedist) rectangle ({(\maxlen - 4) * \bytesize},  -7 * \lineheight -  6 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen - 10) * \bytesize},  -7 * \lineheight -  7 * \linedist) rectangle ({(\maxlen - 3) * \bytesize},  -8 * \lineheight -  7 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen - 10) * \bytesize},  -8 * \lineheight -  8 * \linedist) rectangle ({(\maxlen - 2) * \bytesize},  -9 * \lineheight -  8 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen - 14) * \bytesize},  -9 * \lineheight -  9 * \linedist) rectangle ({(\maxlen - 5) * \bytesize}, -10 * \lineheight -  9 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen - 14) * \bytesize}, -10 * \lineheight - 10 * \linedist) rectangle ({(\maxlen - 4) * \bytesize}, -11 * \lineheight - 10 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen - 14) * \bytesize}, -11 * \lineheight - 11 * \linedist) rectangle ({(\maxlen - 3) * \bytesize}, -12 * \lineheight - 11 * \linedist);
+			\draw [fill=payloadcolor] ({(\maxlen - 14) * \bytesize}, -12 * \lineheight - 12 * \linedist) rectangle ({(\maxlen - 2) * \bytesize}, -13 * \lineheight - 12 * \linedist);
+
+			% Borders of all packets
+			\draw [thick] ({(\maxlen -  2) * \bytesize}, 0) rectangle (\maxlen * \bytesize, -1 * \lineheight);
+			\draw [thick] ({(\maxlen -  3) * \bytesize},  -1 * \lineheight -  1 * \linedist) rectangle (\maxlen * \bytesize,  -2 * \lineheight -  1 * \linedist);
+			\draw [thick] ({(\maxlen -  6) * \bytesize},  -2 * \lineheight -  2 * \linedist) rectangle (\maxlen * \bytesize,  -3 * \lineheight -  2 * \linedist);
+			\draw [thick] ({(\maxlen -  6) * \bytesize},  -3 * \lineheight -  3 * \linedist) rectangle (\maxlen * \bytesize,  -4 * \lineheight -  3 * \linedist);
+			\draw [thick] ({(\maxlen -  6) * \bytesize},  -4 * \lineheight -  4 * \linedist) rectangle (\maxlen * \bytesize,  -5 * \lineheight -  4 * \linedist);
+			\draw [thick] ({(\maxlen - 10) * \bytesize},  -5 * \lineheight -  5 * \linedist) rectangle (\maxlen * \bytesize,  -6 * \lineheight -  5 * \linedist);
+			\draw [thick] ({(\maxlen - 10) * \bytesize},  -6 * \lineheight -  6 * \linedist) rectangle (\maxlen * \bytesize,  -7 * \lineheight -  6 * \linedist);
+			\draw [thick] ({(\maxlen - 10) * \bytesize},  -7 * \lineheight -  7 * \linedist) rectangle (\maxlen * \bytesize,  -8 * \lineheight -  7 * \linedist);
+			\draw [thick] ({(\maxlen - 10) * \bytesize},  -8 * \lineheight -  8 * \linedist) rectangle (\maxlen * \bytesize,  -9 * \lineheight -  8 * \linedist);
+			\draw [thick] ({(\maxlen - 14) * \bytesize},  -9 * \lineheight -  9 * \linedist) rectangle (\maxlen * \bytesize, -10 * \lineheight -  9 * \linedist);
+			\draw [thick] ({(\maxlen - 14) * \bytesize}, -10 * \lineheight - 10 * \linedist) rectangle (\maxlen * \bytesize, -11 * \lineheight - 10 * \linedist);
+			\draw [thick] ({(\maxlen - 14) * \bytesize}, -11 * \lineheight - 11 * \linedist) rectangle (\maxlen * \bytesize, -12 * \lineheight - 11 * \linedist);
+			\draw [thick] ({(\maxlen - 14) * \bytesize}, -12 * \lineheight - 12 * \linedist) rectangle (\maxlen * \bytesize, -13 * \lineheight - 12 * \linedist);
+
+			% Frame classes
+			\draw [thick, decoration = {brace, raise = 5pt}, decorate] (\maxlen * \bytesize,   0 * \lineheight - 0 * \linedist) -- node[right = 7pt] {Class A} (\maxlen * \bytesize, -1 * \lineheight - 0 * \linedist);
+			\draw [thick, decoration = {brace, raise = 5pt}, decorate] (\maxlen * \bytesize,  -1 * \lineheight - 1 * \linedist) -- node[right = 7pt] {Class B} (\maxlen * \bytesize, -2 * \lineheight - 1 * \linedist);
+			\draw [thick, decoration = {brace, raise = 5pt}, decorate] (\maxlen * \bytesize,  -2 * \lineheight - 2 * \linedist) -- node[right = 7pt] {Class C} (\maxlen * \bytesize, -5 * \lineheight - 4 * \linedist);
+			\draw [thick, decoration = {brace, raise = 5pt}, decorate] (\maxlen * \bytesize,  -5 * \lineheight - 5 * \linedist) -- node[right = 7pt] {Class D} (\maxlen * \bytesize, -9 * \lineheight - 8 * \linedist);
+			\draw [thick, decoration = {brace, raise = 5pt}, decorate] (\maxlen * \bytesize,  -9 * \lineheight - 9 * \linedist) -- node[right = 7pt] {Class E} (\maxlen * \bytesize, -13 * \lineheight - 12 * \linedist);
+		\end{tikzpicture}
+		\vspace{0.1cm}
+		\caption{Visual representation of subdivision, black = reserved for \gls{mac}, green = padded \gls{mac}, blue = payload}
+	\end{subfigure}
+	\caption{Total length of fields reserved for \gls{mac} and payload, length of \gls{mac} and the two most significant bits of the ``flags'' field as a function of the payload length}
+	\label{fig:uplink_length_combinations}
+\end{figure}
+
+\subsubsection{Preamble}
+Every Sigfox uplink starts with a 20-bit long \textbf{Preamble} that consists of the binary pattern \texttt{0b1010} repeated 5 times.
+Note that due to differential modulation (\gls{dbpsk}), this corresponds to the pattern ``$\{1, 1, -1, -1\}$'' of baseband symbols repeated 5 times with a trailing ``1''.
+The preamble allows the receiver (base station) to initially discern Sigfox frames from other signal bursts on the allocated uplink band and facilitates clock recovery, that is it functions as a reference to the base station's clock allowing it to determine the appropriate sampling instants.
+
+\subsubsection{Frame Type and Packet}
+Next comes the \textbf{frame type}.
+This 12-bit value indicates the frame class as shown in \Cref{tab:frametype}, chosen depending on the payload length as shown in \Cref{fig:uplink_length_combinations}.
+The choice of 12-bit values in \Cref{tab:frametype} is presumably based upon the idea that the hamming distance between any two frame type codes must be no less than 5 bits, so that \gls{fec} can be applied.
+This way, up to two bit flips within the frame type field can be corrected by the base station.
+Additionally, the frame type also tells the base station whether a given received frame is the first transmission of the frame or which of the two replicas (see \Cref{sec:ul_repetitions}).
+The existence of another frame type value \texttt{0xf67} for frames acknowledging a successful downlink and transmission of basic properties like temperature and battery voltage (also called RX \gls{oob} frames \cite[page 11]{onsemi_datasheet}) is claimed by \cite{disk91radioprotocol}.
+Since this frame type does not seem to be processed by the Sigfox cloud, it was not researched any further.
+
+\begin{table}
+	\centering
+	\begin{minipage}{0.8\textwidth}
+		\renewcommand{\thempfootnote}{\fnsymbol{mpfootnote}}
+		\centering
+		\begin{tabular}{r | c | c c c}
+			& & \multicolumn{3}{c}{\textbf{Frame type value}} \\
+			\textbf{Class} & \textbf{Max. payload length} & \textbf{First TX} & \textbf{Second TX} & \textbf{Third TX} \\ \hline
+			A & 0 \footnote{Single bit message, the value of the single bit is encoded in the ``flags'' field} & \texttt{0x06b} & \texttt{0x6e0} & \texttt{0x034} \\
+			B & 1 & \texttt{0x08d} & \texttt{0x0d2} & \texttt{0x302} \\
+			C & 4 & \texttt{0x35f} & \texttt{0x598} & \texttt{0x5a3} \\
+			D & 8 & \texttt{0x611} & \texttt{0x6bf} & \texttt{0x72c} \\
+			E & 12 & \texttt{0x94c} & \texttt{0x971} & \texttt{0x997} \\
+		\end{tabular}
+	\end{minipage}
+	\caption{Hexadecimal 12-bit frame type values for various classes of frames}
+	\label{tab:frametype}
+\end{table}
+
+After the frame header consisting of preamble and frame type, the \textbf{packet} follows.
+It is made up out of flags, \gls{sn}, device ID, payload and \gls{mac} tag.
+In case of a single-bit transmission, the payload field is omitted as depicted in \Cref{fig:uplinkframe_singlebit} and the single bit's value is instead stored as a flag bit.
+
+\begin{figure}[h]
+	\def\fbitsize{0.14} % x-size of bit in frame
+	\def\pbitsize{0.245} % x-size of bit in packet
+	\def\flagsbitsize{1} % x-size of bit in flags
+	\def\lineheight{0.8}
+	\def\pktoffsety{-1.5}
+	\def\flagsoffsety{-4}
+
+	\definecolor{packetcolor}{rgb}{0.9,1.0,0.8}
+	\definecolor{flagscolor}{rgb}{0.8,0.9,1.0}
+
+	\begin{tikzpicture}[font=\sffamily]
+		% Frame structure
+		\draw [fill=black, thick] (0,0) rectangle (20 * \fbitsize,\lineheight) node[pos=.5, color=white] {Preamble};
+		\draw [thick] (20 * \fbitsize,0) rectangle (32 * \fbitsize,\lineheight) node[pos=.5] {Type};
+		\draw [thick, fill=packetcolor] (32 * \fbitsize,0) rectangle (32 * \fbitsize + 8 * 8 * \fbitsize,\lineheight) node[pos=.5] {Packet};
+		\draw [thick] (32 * \fbitsize + 8 * 8 * \fbitsize,0) rectangle (32 * \fbitsize + 8 * 8 * \fbitsize + 16 * \fbitsize,\lineheight) node[pos=.5] {CRC-16};
+
+		% Frame bit numbers
+		\foreach \x in {0, 20, 32, 96} {
+			\draw [thick] (\x * \fbitsize, \lineheight) -- (\x * \fbitsize, \lineheight + 0.1);
+			\node [anchor=south west] at (\x * \fbitsize, \lineheight) {\x};
+		}
+
+		% Lines from frame to packet
+		\draw [thick] (32 * \fbitsize,0) -- (0, \pktoffsety);
+		\draw [thick] (32 * \fbitsize + 8 * 8 * \fbitsize,0) -- (64 * \pbitsize, \pktoffsety);
+
+		% Packet format
+		\draw [thick, preaction={fill, flagscolor}, pattern=checkerboard, pattern color=packetcolor] (0, \pktoffsety - \lineheight) rectangle (4 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize Flags};
+		\draw [thick, fill=packetcolor] (4 * \pbitsize, \pktoffsety - \lineheight) rectangle (16 * \pbitsize, \pktoffsety) node[pos=.5] {Seq. Num.};
+		\draw [thick, fill=packetcolor] (16 * \pbitsize, \pktoffsety - \lineheight) rectangle (48 * \pbitsize, \pktoffsety) node[pos=.5] {Device ID};
+		\draw [thick, fill=packetcolor] (48 * \pbitsize, \pktoffsety - \lineheight) rectangle (64 * \pbitsize, \pktoffsety) node[pos=.5] {MAC};
+
+		% Packet bit numbers
+		\foreach \x in {0, 4, 16, 48} {
+			\draw [thick] (\x * \pbitsize, \pktoffsety) -- (\x * \pbitsize, \pktoffsety + 0.1);
+			\node [fill=white, text opacity=1.0, fill opacity=0.8, anchor=south west] at (\x * \pbitsize, \pktoffsety) {\x};
+		}
+
+		% Lines from packet to flags
+		\draw [thick] (0,\pktoffsety - \lineheight) -- (0, \flagsoffsety);
+		\draw [thick] (4 * \pbitsize,\pktoffsety - \lineheight) -- (4 * \flagsbitsize, \flagsoffsety);
+
+		% Flags format
+		\draw [thick, fill=flagscolor] (0, \flagsoffsety - \lineheight) rectangle (1 * \flagsbitsize, \flagsoffsety) node[pos=.5] {1};
+		\draw [thick, fill=flagscolor] (1 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (2 * \flagsbitsize, \flagsoffsety) node[pos=.5] {V};
+		\draw [thick, fill=flagscolor] (2 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (3 * \flagsbitsize, \flagsoffsety) node[pos=.5] {D};
+		\draw [thick, fill=flagscolor] (3 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (4 * \flagsbitsize, \flagsoffsety) node[pos=.5] {0};
+
+		% Legend for flags
+		\node [anchor=west] at (6 * \flagsbitsize, \flagsoffsety + 0.5) {V = message bit value};
+		\node [anchor=west] at (6 * \flagsbitsize, \flagsoffsety) {D = downlink requested};
+	\end{tikzpicture}
+	\caption{Frame and packet format of single-bit Sigfox uplink. The message bit value is contained in the ``Flags'' field.}
+	\label{fig:uplinkframe_singlebit}
+\end{figure}
+
+\subsubsection{Flags}
+Hence, the functions of the four \textbf{flag} bits differ depending on whether a single-bit frame or any other frame is transmitted.
+For single-bit frames (class A), the value of the most significant flag bit must always be ``1''.
+The second \gls{msb} then acts as the single-bit payload and can either be ``1'' or ``0''.
+For all other frame types (classes B, C, D or E), the two most significant flag bits act as an indicator for the length of the \gls{mac}.
+When interpreting the two bits as a binary number $N$, the total length of the \gls{mac} in bytes is $2 + N$, where the $2$ stands for the $2$ bytes that are always reserved for the \gls{mac}.
+In other words, for a frame class with a maximum payload length of $K$-bytes ($K \in \{ 1, 4, 8, 12\}$), only $K - N$ bytes are assigned to the payload whereas all remaining bytes are used for the \gls{mac}.
+The two most significant flag bits are consequently a function of the payload length.
+This circumstance is also demonstrated in \Cref{fig:uplink_length_combinations}.
+An example for an uplink frame with a 4-byte payload is shown in \Cref{fig:uplinkframe_4byte}.
+Since the \gls{mac} is only $2 = 2 + N$ bytes long, $N$ is zero and thus the two \glspl{msb} are \texttt{0b00}.
+If the payload length is extended by one byte to a 5-byte payload as shown in \Cref{fig:uplinkframe_5byte}, a class C frame with a maximum of 4 bytes payload does not suffice and a class D frame with a maximum payload length of 8 bytes has to be chosen instead.
+Since $8 - 5 = 3$ bytes of the additional payload length remain unused, the \gls{mac} length is increased to $5 = 2 + N$ bytes, $N = 3$ and both \glspl{msb} in the flags are set.
+
+\begin{figure}[h]
+	\centering
+
+	\def\fbitsize{0.14} % x-size of bit in frame
+	\def\pbitsize{0.14} % x-size of bit in packet
+	\def\flagsbitsize{1} % x-size of bit in flags
+	\def\lineheight{0.8}
+	\def\pktoffsety{-1.5}
+	\def\pktoffsetx{1.0}
+	\def\flagsoffsety{-4}
+
+	\definecolor{packetcolor}{rgb}{0.9,1.0,0.8}
+	\definecolor{flagscolor}{rgb}{0.8,0.9,1.0}
+
+	\scalebox{0.9}{
+	\begin{tikzpicture}[font=\sffamily]
+		% Frame structure
+		\draw [fill=black, thick] (0,0) rectangle (20 * \fbitsize,\lineheight) node[pos=.5, color=white] {Preamble};
+		\draw [thick] (20 * \fbitsize,0) rectangle (32 * \fbitsize,\lineheight) node[pos=.5] {Type};
+		\draw [thick, fill=packetcolor] (32 * \fbitsize,0) rectangle (32 * \fbitsize + 8 * 8 * \fbitsize,\lineheight) node[pos=.5] {Packet};
+		\draw [thick] (32 * \fbitsize + 8 * 8 * \fbitsize,0) rectangle (32 * \fbitsize + 8 * 8 * \fbitsize + 16 * \fbitsize,\lineheight) node[pos=.5] {CRC-16};
+
+		% Frame bit numbers
+		\foreach \x in {0, 20, 32, 96} {
+			\draw [thick] (\x * \fbitsize, \lineheight) -- (\x * \fbitsize, \lineheight + 0.1);
+			\node [anchor=south west] at (\x * \fbitsize, \lineheight) {\x};
+		}
+
+		% Lines from frame to packet
+		\draw [thick] (32 * \fbitsize,0) -- (\pktoffsetx, \pktoffsety);
+		\draw [thick] (32 * \fbitsize + 8 * 8 * \fbitsize,0) -- (\pktoffsetx + 96 * \pbitsize, \pktoffsety);
+
+		% Packet format
+		\draw [thick, preaction={fill, flagscolor}, pattern=checkerboard, pattern color=packetcolor] (\pktoffsetx, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 4 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize F.};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 4 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 16 * \pbitsize, \pktoffsety) node[pos=.5] {SN};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 16 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 48 * \pbitsize, \pktoffsety) node[pos=.5] {ID};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 48 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 80 * \pbitsize, \pktoffsety) node[pos=.5] {4-Byte Payload};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 80 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 96 * \pbitsize, \pktoffsety) node[pos=.5] {MAC};
+
+		% Packet bit numbers
+		\foreach \x in {0, 4, 16, 48, 80} {
+			\draw [thick] (\pktoffsetx + \x * \pbitsize, \pktoffsety) -- (\pktoffsetx + \x * \pbitsize, \pktoffsety + 0.1);
+			\node [fill=white, text opacity=1.0, fill opacity=0.8, anchor=south west] at (\pktoffsetx + \x * \pbitsize, \pktoffsety) {\x};
+		}
+
+		% Lines from packet to flags
+		\draw [thick] (\pktoffsetx, \pktoffsety - \lineheight) -- (0, \flagsoffsety);
+		\draw [thick] (\pktoffsetx + 4 * \pbitsize, \pktoffsety - \lineheight) -- (4 * \flagsbitsize, \flagsoffsety);
+
+		% Flags format
+		\draw [thick, fill=flagscolor] (0, \flagsoffsety - \lineheight) rectangle (1 * \flagsbitsize, \flagsoffsety) node[pos=.5] {0};
+		\draw [thick, fill=flagscolor] (1 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (2 * \flagsbitsize, \flagsoffsety) node[pos=.5] {0};
+		\draw [thick, fill=flagscolor] (2 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (3 * \flagsbitsize, \flagsoffsety) node[pos=.5] {D};
+		\draw [thick, fill=flagscolor] (3 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (4 * \flagsbitsize, \flagsoffsety) node[pos=.5] {0};
+
+		% Legend for flags
+		\node [anchor=west] at (6 * \flagsbitsize, \flagsoffsety) {D = downlink requested};
+	\end{tikzpicture}}
+	\caption{Frame and packet format for 4-byte Sigfox uplink. The \gls{mac} is 2 bytes long, which is indicated by the first two flag bits \texttt{0b00}.}
+	\label{fig:uplinkframe_4byte}
+\end{figure}
+
+\begin{figure}[h]
+	\centering
+
+	\def\fbitsize{0.14} % x-size of bit in frame
+	\def\pbitsize{0.12} % x-size of bit in packet
+	\def\flagsbitsize{1} % x-size of bit in flags
+	\def\lineheight{0.8}
+	\def\pktoffsety{-1.5}
+	\def\pktoffsetx{0.3}
+	\def\flagsoffsety{-4}
+
+	\definecolor{packetcolor}{rgb}{0.9,1.0,0.8}
+	\definecolor{flagscolor}{rgb}{0.8,0.9,1.0}
+
+	\scalebox{0.9}{
+	\begin{tikzpicture}[font=\sffamily]
+		% Frame structure
+		\draw [fill=black, thick] (0,0) rectangle (20 * \fbitsize,\lineheight) node[pos=.5, color=white] {Preamble};
+		\draw [thick] (20 * \fbitsize,0) rectangle (32 * \fbitsize,\lineheight) node[pos=.5] {Type};
+		\draw [thick, fill=packetcolor] (32 * \fbitsize,0) rectangle (32 * \fbitsize + 8 * 8 * \fbitsize,\lineheight) node[pos=.5] {Packet};
+		\draw [thick] (32 * \fbitsize + 8 * 8 * \fbitsize,0) rectangle (32 * \fbitsize + 8 * 8 * \fbitsize + 16 * \fbitsize,\lineheight) node[pos=.5] {CRC-16};
+
+		% Frame bit numbers
+		\foreach \x in {0, 20, 32, 96} {
+			\draw [thick] (\x * \fbitsize, \lineheight) -- (\x * \fbitsize, \lineheight + 0.1);
+			\node [anchor=south west] at (\x * \fbitsize, \lineheight) {\x};
+		}
+
+		% Lines from frame to packet
+		\draw [thick] (32 * \fbitsize,0) -- (\pktoffsetx, \pktoffsety);
+		\draw [thick] (32 * \fbitsize + 8 * 8 * \fbitsize,0) -- (\pktoffsetx + 128 * \pbitsize, \pktoffsety);
+
+		% Packet format
+		\draw [thick, preaction={fill, flagscolor}, pattern=checkerboard, pattern color=packetcolor] (\pktoffsetx, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 4 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize F.};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 4 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 16 * \pbitsize, \pktoffsety) node[pos=.5] {SN};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 16 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 48 * \pbitsize, \pktoffsety) node[pos=.5] {ID};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 48 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 88 * \pbitsize, \pktoffsety) node[pos=.5] {5-Byte Payload};
+		\draw [thick, fill=packetcolor] (\pktoffsetx + 88 * \pbitsize, \pktoffsety - \lineheight) rectangle (\pktoffsetx + 128 * \pbitsize, \pktoffsety) node[pos=.5] {MAC};
+
+		% Packet bit numbers
+		\foreach \x in {0, 4, 16, 48, 88} {
+			\draw [thick] (\pktoffsetx + \x * \pbitsize, \pktoffsety) -- (\pktoffsetx + \x * \pbitsize, \pktoffsety + 0.1);
+			\node [fill=white, text opacity=1.0, fill opacity=0.8, anchor=south west] at (\pktoffsetx + \x * \pbitsize, \pktoffsety) {\x};
+		}
+
+		% Lines from packet to flags
+		\draw [thick] (\pktoffsetx, \pktoffsety - \lineheight) -- (0, \flagsoffsety);
+		\draw [thick] (\pktoffsetx + 4 * \pbitsize, \pktoffsety - \lineheight) -- (4 * \flagsbitsize, \flagsoffsety);
+
+		% Flags format
+		\draw [thick, fill=flagscolor] (0, \flagsoffsety - \lineheight) rectangle (1 * \flagsbitsize, \flagsoffsety) node[pos=.5] {1};
+		\draw [thick, fill=flagscolor] (1 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (2 * \flagsbitsize, \flagsoffsety) node[pos=.5] {1};
+		\draw [thick, fill=flagscolor] (2 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (3 * \flagsbitsize, \flagsoffsety) node[pos=.5] {D};
+		\draw [thick, fill=flagscolor] (3 * \flagsbitsize, \flagsoffsety - \lineheight) rectangle (4 * \flagsbitsize, \flagsoffsety) node[pos=.5] {0};
+
+		% Legend for flags
+		\node [anchor=west] at (6 * \flagsbitsize, \flagsoffsety) {D = downlink requested};
+	\end{tikzpicture}}
+	\caption{Frame and packet format for 5-byte Sigfox uplink. The \gls{mac} is 5 bytes long, which is indicated by the first two flag bits \texttt{0b11}.}
+	\label{fig:uplinkframe_5byte}
+\end{figure}
+
+The other two flag bits have the same functionality independent on the frame class: The third flag bit requests a downlink from the base station if set (``1'') and the fourth flag bit must always be ``0''.
+The function of the fourth flag bit could not be determined, since it always appears to be transmitted as ``0'' by the tested Sigfox object and the base station does not accept frames with the fourth flag bit set.
+
+\subsubsection{Sequence Number}
+The subsequent packet field is the 12-bit \textbf{sequence number (\gls{sn})}.
+This unsigned integer number has a range from 0 to $2^{12} = 4096$ and is automatically incremented by the Sigfox object after each uplink (not between uplink repetitions though).
+After reaching its maximum value of $2^{12} - 1$, it wraps around to $0$.
+It acts as a protection against replay attacks, as the Sigfox cloud automatically discards all messages with sequence numbers outside a fixed validity window.
+According to \cite[Section 5.1.1]{sigfox_tech}, the size of the validity window depends on the Sigfox customer's subscription plan, that is the number of messages a Sigfox object is allowed to send per day, in accordance to the equation
+\begin{equation}
+	\text{validity window} = \max  \left \{ 3 \cdot \text{messages per day}, \, 20 \right \}
+\end{equation}
+Put differently, the Sigfox cloud only accepts uplinks if
+\begin{equation}
+	0 < \left(\text{\gls{sn}} - \text{\gls{sn} of last uplink} \right) \bmod 2^{12} \leq \text{validity window}
+\end{equation}
+In lack of multiple Sigfox subscriptions, the claims about the size of the validity window were not verified.
+However, the Sigfox cloud does clearly discard \glspl{sn} outside a certain validity window.
+For instance, replaying the same uplink transmission twice will not produce two messages on the Sigfox cloud's web interface.
+Instead, the duplicate transmission is silently discarded.
+
+\subsubsection{Device ID}
+The \gls{sn} is followed by the 32-bit (4-byte) \textbf{device ID}.
+This ID is encoded in little-endian format, which means that the first of the four bits is the least significant byte, that is it contains the \glsreset{lsb}\gls{lsb}.
+The device ID is unique to the Sigfox object that sends the uplink and is static, as it is either preprogrammed into the Sigfox transceiver at the factory or provisioned later on.
+
+\subsubsection{Payload and MAC Tag}
+Finally, the packet concludes with two variable-length fields for \textbf{payload and \gls{mac}} tag.
+As previously explained, the length of the two individual fields depends on the length of the payload to be transferred.
+The payload is contained in plaintext, no encryption, scrambling or similar is applied.
+Since the \gls{mac}'s size is variable, the payload field does not have to be padded but is instead always resized to match the actual content, so its length is an arbitrary integer number of bytes between 0 and 12.
+The remaining space in the packet is filled with the variable-length \gls{mac} tag, whose computation is explained in greater detail in \Cref{sec:uplink_mac}.
+The \gls{mac} ensures the integrity of all packet data (flags, \gls{sn}, device ID and payload) against malicious modification.
+It does not, however, ensure the integrity of any data outside the packet (preamble, frame type, \gls{crc}).
+
+\subsubsection{CRC Checksum}
+The uplink frame is terminated by a 16-bit \textbf{\gls{crc}} checksum.
+This checksum protects the integrity of the packet (flags, \gls{sn}, device ID, payload and \gls{mac} tag) against randomly occurring bit errors.
+Since the checksum is only calculated over the packet, bit errors in the frame type cannot be detected by checking the \gls{crc}, but they could theoretically be handled by a different \gls{fec} mechanism anyway.
+
+\subsection{Open Implementation}
+Uplink encoding is implemented in \texttt{librenard} with \texttt{renard} as an easy-to-use front end for command line access that can e.g. be used for testing.
+The operation of \texttt{renard} in uplink encoding mode is illustrated in \Cref{fig:librenard_uplink}.
+Note that in order to successfully forge Sigfox uplinks, \texttt{renard} needs the Sigfox object's \gls{nak}.
+This usually means that physical access to the Sigfox object is required so that the \gls{nak} can be obtained by methods like dumping flash memory.
+
+\begin{figure}[h]
+	\begin{subfigure}[c]{1.0\textwidth}
+		\centering
+		\begin{tikzpicture}
+			\node at (0, 0) [align = center, draw, rectangle, minimum height = 4em, minimum width = 10em, rounded corners = 1, fill = blue!10!white] (renard) {\texttt{librenard}\\(uplink-encoding mode)};
+			\node (privkey) at (-6, 2) {\gls{nak}};
+			\node (devid) at (-6, 1) {Device ID};
+			\node (payload) at (-6, 0) {Payload};
+			\node (sn) at (-6, -1) {Sequence Number};
+			\node (downlinkreq) at (-6, -2) {Request Downlink?};
+
+			\draw [-latex] (privkey.east) -> ($(renard.west) + (0, 0.5)$);
+			\draw [-latex] (devid.east) -> ($(renard.west) + (0, 0.25)$);
+			\draw [-latex] (payload.east) -> ($(renard.west) + (0, 0)$);
+			\draw [-latex] (sn.east) -> ($(renard.west) + (0, -0.25)$);
+			\draw [-latex] (downlinkreq.east) -> ($(renard.west) + (0, -0.5)$);
+
+			\node [align = center] (frame) at (5, 0) {Uplink Frame\\\textit{(Optional: Repetition}\\\textit{Frames)}};
+
+			\draw [-latex] (renard.east) -> (frame.west);
+		\end{tikzpicture}
+		\caption{Inputs and outputs of \texttt{librenard} for encoding an uplink}
+	\end{subfigure}
+	\par\bigskip
+	\begin{subfigure}[c]{1.0\textwidth}
+		\centering
+		\begin{tikzpicture}
+			\node at (0, 0) [align = center, draw, rectangle, minimum height = 4em, minimum width = 8em, rounded corners = 4] (buildpacket) {Build Packet\\(Flags, Device ID, \\\gls{sn}, Payload)};
+			\node [align = center, draw, rectangle, minimum height = 4em, minimum width = 8em, rounded corners = 4, right = of buildpacket] (compmac) {Compute and\\Append \gls{mac}};
+			\node [align = center, draw, rectangle, minimum height = 4em, minimum width = 8em, rounded corners = 4, right = of compmac] (crc) {Compute Packet's\\\gls{crc} Checksum};
+			\node [align = center, draw, rectangle, minimum height = 4em, minimum width = 8em, rounded corners = 4, right = of crc] (frame) {Wrap Packet\\in Frame};
+
+			\draw [-latex] (buildpacket.east) -> (compmac.west);
+			\draw [-latex] (compmac.east) -> (crc.west);
+			\draw [-latex] (crc.east) -> node (crcframearrow) {} (frame.west);
+
+			\node [align = center, draw, rectangle, minimum height = 4em, minimum width = 8em, rounded corners = 4, below = of crcframearrow, dashed] (convcode) {\textit{Optional: repetition}\\\textit{frame encoding}};
+			\draw [-latex, dashed] (crc.south) |- (convcode.west);
+			\draw [-latex, dashed] (convcode.east) -| (frame.south);
+		\end{tikzpicture}
+		\caption{Flow chart of execution steps required for constructing an uplink frame}
+	\end{subfigure}
+	\caption{Operation of \texttt{librenard} in uplink encoding mode. The computation of repetition frames is explained in \Cref{sec:ul_repetitions}.}
+	\label{fig:librenard_uplink}
+\end{figure}
+
+Mind that \texttt{librenard} does not implement physical layer modulation, but when using an \gls{sdr} instead of a dedicated hardware modulator / demodulator (also called PHY chip), the scripts briefly mentioned in \Cref{sec:uplink_phy_reimp} and more extensively discussed in \Cref{sec:demodscripts} can be used as a replacement for a hardware PHY.
+
+Being able to encode and transmit Sigfox frames not only allows for verification of the suspected standard by comparing frames created by a commercial Sigfox object to frames created by \texttt{renard} or by transmitting forged frames using an \gls{sdr}, but also gives the opportunity to fuzz data.
+For instance, fuzzing can mean sending frames with invalid \glspl{crc} and \gls{mac} tags or with \glspl{sn} that are out of order.
+
+\subsection{Result}
+\label{sec:uplink_frameformat_result}
+One possible Sigfox uplink frame structure was obtained from recordings of Sigfox transmissions.
+This theory was then confirmed by transmitting various forged frames, which were accepted by the Sigfox network.
+While this proves that the reconstructed standard is applicable, it does not necessarily imply that it is also complete. 
+
+Telecommunication systems are often described in the context of abstraction layers defined by the \gls{osimodel} \cite{osimodel} with different, interchangeable protocols on the various layers.
+Having said that, it is not reasonable to apply this model to the Sigfox standard as Sigfox defines and merges functionality of several layers into one, which makes a clear distinction between layers impossible.
+Most notably, the network layer that is typically responsible for routing and the transport layer are completely omitted thanks to the very simple one-hop star network topology.
+To substitute functionality of higher layers such as detection of duplicate transmissions and authentication, some interesting solutions had to be incorporated by Sigfox.
+It is also important to keep in mind that Sigfox targets low-power devices so that every single additional bit that is to be transmitted causes additional strain on the battery.
+The minimization of the number of transmitted bits was clearly a priority when designing the uplink protocol, that would certainly explain e.g. the addition of a single-bit frame class.
+
+Fuzzing the uplink data yielded no successful results: Sending an invalid \gls{crc}, \gls{mac} or both causes the uplink to be ignored by the Sigfox cloud.
+Sending invalid \glspl{sn} showed that the Sigfox cloud actually implements an \gls{sn} validity window as claimed in \cite[Section 5.1.1]{sigfox_tech}.
+It is easily possible to read all properties including the payload of an arbitrary Sigfox transmission captured using e.g. an \gls{sdr}.
+
+Another area of possible further research is whether the \gls{fec} coding used in the frame type field is based on some known error correction code and if even more frame types exist.
+For instance, the set of already known frame types could be extended by a set \texttt{\{0xa3a, 0xad9, 0xc06, 0xcfc, 0xfca\}} without reducing the minimum hamming distance of 5 between any two 12-bit frame type values.
+In fuzzing experiments, only valid frame types without flipped bits were accepted.
+This indicates that Sigfox base stations don't apply \gls{fec} using the redundancy information in the frame type field as of October 2018.
+
+\FloatBarrier
+\section{Authentication Tag Generation}
+\label{sec:uplink_mac}
+\subsection{Introduction: Authentication and CBC-MAC}
+\label{sec:uplink_mac_introduction}
+As previously mentioned in \Cref{sec:uplink_mac_crc}, the purpose of message authentication is to make verifiable if a given message actually originated from the sender.
+This means neither should an attacker be able to construct a valid message (known as authenticity), nor tamper with a message in transit without making it invalid (known as integrity, which is implied by authenticity).
+While sending malicious messages and modifications cannot be prevented per se, it can be made highly unlikely (in practice impossible) for an adversary to construct a valid message.
+By then designing the receiver in a way that all invalid messages are discarded, attacks against the integrity of messages are made unfeasible.
+The problem of message authentication is distinct from that of encryption, that is neither does transmitting encrypted data necessarily guarantee integrity of the message nor does message authentication ensure secrecy, i.e. prevent an eavesdropper from reading the contents of the message \cite[Section 4.1.2]{moderncryptography}.
+Moreover, message authentication is similar, but also distinct from digital signatures, which provide only one potential solution to the message authentication problem \cite[Section 1.1.3]{foundationsofcryptography}.
+
+Evidently, unforgeable authentication cannot be achieved by naively including a static value such as a password in every frame, which is leaked by intercepting any transmission between the two honest communication partners.
+Instead, since the interception of every single transmission has to be expected in a worst case scenario, one must make sure the adversary cannot forge messages even after collecting an arbitrary number of valid messages.
+
+A common method for achieving this is by, using some tag-generating algorithm $\Tag(\cdot)$, computing a ``tag'' whose value is variable and depends on the content of the message, so that a tag value $\mathbf t \leftarrow \Tag(\mathbf m)$ only authenticates the matching message $\mathbf m$.
+The sender then transmits $(\mathbf m, \mathbf t)$ to the receiver, who can apply the same function $\mathbf t' \leftarrow \Tag(\mathbf m)$ and verify that $\mathbf t' = \mathbf t$.
+In case the message $\mathbf m$ was replaced with a different message $\mathbf m^*$ to form a transmission $(\mathbf m^*, \mathbf t)$, this validation fails since $\mathbf t^* \neq \mathbf t$ with $\mathbf t^* \leftarrow \Tag(\mathbf m^*)$.
+Clearly, this scheme depends on the adversary not being able to compute a tag by themselves.
+
+This is where the idea of \glspl{mac} is applied: For computing the \gls{mac} tag of a specific message $\mathbf m$, not only does the tag depend on the message content, but also on a key value $\mathbf k$: $\mathbf t \leftarrow \Mac_{\mathbf k}(\mathbf m)$.
+By sharing the key $\mathbf k$ between sender and receiver, then called ``secret key'' or ``private key'' (not to be confused with a private key in asymmetric cryptography) and in the special case of Sigfox called \gls{nak}, only sender and receiver are able to authenticate and verify transmissions while the underlying \gls{mac} computation algorithm can be shared publicly \cite[chapter 4, 5]{moderncryptography}.
+A visual representation of the sender / receiver architecture is depicted in \Cref{fig:macprinciple}.
+
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}
+		% sender / receiver with private keys
+		\node (sender) [rectangle, thick, draw, minimum height = 6cm, minimum width = 3cm, fill = black!10!white] at (0, 0) {};
+		\node (receiver) [rectangle, thick, draw, minimum height = 6cm, minimum width = 3cm, fill = black!10!white] at (10, 0) {};
+
+		\node [below = 2pt of sender] {Sender};
+		\node [below = 2pt of receiver] {Receiver};
+
+		\node (leftkey) [rectangle, draw, minimum height = 0.8cm, minimum width = 2.2cm, rounded corners = 3, fill = green!20!white] at (0, 2.3) {Secret Key};
+		\node (rightkey) [rectangle, draw, minimum height = 0.8cm, minimum width = 2.2cm, rounded corners = 3, fill = green!20!white] at (10, 2.3) {Secret Key};
+		\draw [latex-latex, dashed] (leftkey) -- node [above] {pre-shared} (rightkey);
+
+		% MAC algorithms
+		\node (leftmacalg) [rectangle, draw, minimum width = 2.2cm, align = center, fill = orange!20!white] at (0, 0.7) {MAC\\Algorithm};
+		\node (rightmacalg) [rectangle, draw, minimum width = 2.2cm, align = center, fill = orange!20!white] at (10, 0.7) {MAC\\Algorithm};
+
+		% (m, k) message
+		\node (mk) [rectangle, thick, draw, minimum width = 3cm, minimum height = 2.3cm] at (5, -0.4) {};
+		\node (message) [rectangle, draw, minimum width = 3cm, minimum height = 1.5cm] at (5, 0) {Message};
+		\node (mactag) [rectangle, draw, minimum width = 3cm, minimum height = 0.8cm] at (5, -1.15) {\gls{mac} Tag};
+
+		% message source
+		\node at (0, -1.7) [draw, circle, radius = 0.9cm, align = center, fill = white] (msgsrc) {Message\\Source};
+
+		% decision node
+		\node at (10, -1.0) [draw, diamond, fill = white] (decision) {=?};
+		\node (msgauthentic) at (10, -2.5) [align = center, font=\fontsize{8pt}{8pt}\selectfont] {equality: message\\is authentic};
+
+		% arrows
+		\draw [-latex, thick] (msgsrc) -- (message.west) node[pos=0.8, left, yshift=0.1cm] {$\mathbf m$};
+		\draw [-latex, thick] (msgsrc) -- (leftmacalg) node[midway, right] {$\mathbf m$};
+		\draw [-latex, thick] (leftmacalg) -- (mactag.west) node[pos=0.2, right, yshift=0.1cm] {$\mathbf t$};
+		\draw [-latex, thick] (leftkey) -- (leftmacalg) node[midway, right] {$\mathbf k$};
+		\draw [-latex, thick] (rightkey) -- (rightmacalg) node[midway, left] {$\mathbf k$};
+		\draw [-latex, thick] (rightmacalg) -- (decision) node[midway, left] {$\mathbf{t}'$};
+		\draw [-latex, thick] (mactag) -- (decision.west) node[midway, below] {$\mathbf t$};
+		\draw [-latex, thick] (message) -- (rightmacalg) node[midway, above] {$\mathbf m$};
+		\draw [-latex, thick] (decision) -- (msgauthentic);
+	\end{tikzpicture}
+	\caption{General principle of message authentication checking using \gls{mac} tags, inspired by \cite[Figure 5]{sigfox_secure}}
+	\label{fig:macprinciple}
+\end{figure}
+
+Mind, however, that \gls{mac} tags do not protect against replay attacks, that is attacks where an adversary sends a captured transmission $(\mathbf m, \mathbf t)$ multiple times to the receiver: If validation of a message $\mathbf m$ succeeds the first time, it will continue to do so the second time.
+Protection against replay attacks have to be handled on different protocol levels by means of e.g. sequence counters or timestamps \cite[Section 4.2, replay attacks]{moderncryptography}.
+
+Various algorithms for calculating \gls{mac} tags are conceivable, e.g. based on hash functions \cite[Section 5.3]{moderncryptography} or based on block ciphers.
+A special version of a block cipher-based algorithm is called \gls{cbcmac}.
+\gls{cbcmac} uses some block cipher in \gls{cbc} mode for encrypting the message and then uses the final block of the encrypted output (ciphertext) as \gls{mac} tag \cite[Section 4.4]{moderncryptography}.
+\Cref{fig:cbcmac} shows a block diagram of a \gls{cbcmac} algorithm for two input blocks.
+In contrast to regular encryption with some block cipher, only the final block of the ciphertext is used.
+Also, the \gls{iv} $\mathbf i$ of the operation is zero, as is mandatory for \gls{cbcmac} \cite[Section 4.4.1]{moderncryptography}.
+Possible block ciphers $E$ for use with \gls{cbcmac} are, among others, those in the Rijndael / \gls{aes} family of ciphers such as \gls{aes}-128, which uses a block and key length of 128 bits.
+
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}
+		\foreach \i in {1, 2} {
+			\node (f\i) at ($\i*(5cm,0)$) [thick, minimum size = 1.25cm, draw] {\Large $E$};
+			\node (m\i) [thick, above of = f\i, node distance = 3.5cm, align = center] {Block $\i$ of\\Plaintext ($\mathbf m$)};
+			\node (key\i) [left of = f\i, node distance = 2cm] {Key $\mathbf k$};
+			\node (xor\i) [thick, circle, above of = f\i, node distance = 1.5cm, draw, minimum height = 0.6cm, minimum width = 0.6cm] {};
+			\draw [thick] (xor\i.north) -- (xor\i.south);
+			\draw [thick] (xor\i.east) -- (xor\i.west);
+			\draw [thick, -latex] (m\i) -- (xor\i);
+			\draw [thick, -latex] (xor\i) -- (f\i);
+			\draw [thick, -latex] (key\i) -- (f\i);
+		}
+
+		\draw [thick, -latex] (f1.south) -- +(0cm, -0.3cm) -| +(1.5cm, 2.125cm) -- ($(xor1.west) + (5cm, 0)$) node[midway, above, align=center] {Block 1\\of ciphertext};
+
+		\node (iv) [left of = xor1, node distance = 2cm] {\gls{iv} $\mathbf i = \mathbf 0^{128}$};
+		\draw [thick, -latex] (iv) -- (xor1);
+		\draw [thick, -latex] (f2.south) |- +(1.0cm, -0.3cm) node [anchor = west, align = center] {\gls{mac} Tag $\mathbf t$}; 
+	\end{tikzpicture}
+	\caption{Block diagram of a \gls{cbcmac} algorithm using a block cipher $E$ with a constant number of two input blocks}
+	\label{fig:cbcmac}
+\end{figure}
+
+\subsection{Implementation by Sigfox}
+\label{sec:ul_mac_realization}
+Sigfox utilizes a standard \gls{cbcmac} algorithm with \gls{aes}-128 as the block cipher.
+The key (\gls{nak}) for the block cipher is shared between Sigfox object and Sigfox cloud.
+Not the whole final block of the ciphertext output is used as \gls{mac} tag though: Instead, the \gls{mac} tag is made up of only the first 2 to 5 bytes of the last block.
+The specific length of the tag in bytes depends on the payload length as explained in \Cref{sec:framestructure_realization} and shown in \Cref{fig:uplink_length_combinations}.
+
+The whole packet other than the \gls{mac} itself, that is the flags, the sequence number, the device ID and the payload, is used as input message $\mathbf m$ for the \gls{mac} calculation function that outputs the tag $\mathbf t$, as shown in \Cref{fig:uplink_macmessage_composition}.
+This means that an attacker that does not know the \gls{nak} cannot modify any of these fields without rendering the message invalid.
+On the other hand, preamble, frame type and \gls{crc} integrity are not protected by the \gls{mac} tag.
+This is not critical since errors in any of these fields can only result in the frame not being picked up or being discarded in later stages of processing in the base station or Sigfox cloud.
+
+\begin{figure}[h]
+	\centering
+
+	\def\pbitsize{0.09} % x-size of bit in packet
+	\def\lineheight{0.8}
+	\def\pktoffsety{0}
+	\def\macalgoffsety{-2}
+	\def\tagoffsety{-3.5}
+
+	\definecolor{packetcolor}{rgb}{0.9,1.0,0.8}
+	\definecolor{flagscolor}{rgb}{0.8,0.9,1.0}
+
+	\begin{tikzpicture}[font=\sffamily]
+		% Packet format
+		\draw [line width = 0.5mm] (0, \pktoffsety - \lineheight) rectangle (144 * \pbitsize, \pktoffsety);
+		\foreach \i in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12} {
+			\draw [dashed] (48 * \pbitsize, \pktoffsety - \lineheight) rectangle (48 * \pbitsize + \i * 8 * \pbitsize, \pktoffsety) node[pos=.5] {};
+		}
+		\draw [thick] (0, \pktoffsety - \lineheight) rectangle (4 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize F.};
+		\draw [thick] (4 * \pbitsize, \pktoffsety - \lineheight) rectangle (16 * \pbitsize, \pktoffsety) node[pos=.5] {SN};
+		\draw [thick] (16 * \pbitsize, \pktoffsety - \lineheight) rectangle (48 * \pbitsize, \pktoffsety) node[pos=.5] {Device ID};
+		\draw [thick, fill=white, text opacity=1.0, fill opacity=0.6] (144 * \pbitsize, \pktoffsety) rectangle (48 * \pbitsize, \pktoffsety - \lineheight) node[pos=.5] {Payload (0-12 byte)};
+
+		% Packet bit numbers
+		\foreach \x in {0, 4, 16, 48} {
+			\draw [thick] (\x * \pbitsize, \pktoffsety) -- (\x * \pbitsize, \pktoffsety + 0.1);
+			\node [anchor=south] at (\x * \pbitsize, \pktoffsety) {\x};
+		}
+
+		% Message m braces
+		\draw [thick, decoration = {brace, raise = 5pt}, decorate] (144 * \pbitsize, \pktoffsety) -- node[align = center, right = 7pt, font=\fontsize{10pt}{10pt}\selectfont] {message $\mathbf m$\\to be\\authenticated} (144 * \pbitsize, \pktoffsety - \lineheight);
+
+		% MAC function
+		\node [rectangle, draw, rounded corners = 3pt, fill = black!10!white, thick, minimum width = 3cm, minimum height = 1.1cm] (macfunction) at (72 * \pbitsize, \macalgoffsety) {$\Mac_\mathbf{k}(\cdot)$};
+		\draw [thick, -latex] (72 * \pbitsize, \pktoffsety - \lineheight) -- (macfunction.north);
+
+		% Tag output
+		\node (tag) at (72 * \pbitsize, \tagoffsety) {\gls{mac} Tag $\mathbf t$};
+		\draw [thick, -latex] (macfunction.south) -- (tag.north);
+	\end{tikzpicture}
+	\caption{Composition of the message $\mathbf m$ that the \gls{mac} tag $\mathbf t$ authenticates in the case of a Sigfox uplink}
+	\label{fig:uplink_macmessage_composition}		
+\end{figure}
+
+In addition, Sigfox uses something that will be called ``wrap padding'' in this document to generate the plaintext input.
+\gls{cbcmac}, just like any block cipher in \gls{cbc} mode, only takes an integer number of plaintext blocks as input.
+This means that the length of the input data must be a multiple of the cipher block length, which is 128 bits or 32 bytes for the \gls{aes}-128 cipher used by Sigfox.
+Since that is only the case for packets with payload lengths of $10$ bytes (the remaining 6 bytes in $\mathbf m$ are flags, \gls{sn} and device ID), all frames with different payload lengths use wrap padding.
+In concrete terms, this means that the remaining space in the plaintext input blocks is filled by repeating the bytes of $\mathbf m$ starting from the first byte.
+For instance, this 9-byte message with bytes $b_0, \ldots, b_8$ is considered:
+\begin{equation}
+	\mathbf m_\text{unpadded} = \{ b_0 ~~ b_1 ~~ b_2 ~~ b_3 ~~ b_4 ~~ b_5 ~~ b_6 ~~ b_7 ~~ b_8 \}
+\end{equation}
+After wrap padding to 16 bytes, it becomes:
+\begin{equation}
+	\mathbf m_\text{padded} = \{ b_0 ~~ b_1 ~~ b_2 ~~ b_3 ~~ b_4 ~~ b_5 ~~ b_6 ~~ b_7 ~~ b_8 ~~ b_0 ~~ b_1 ~~ b_2 ~~ b_3 ~~ b_4 ~~ b_5 ~~ b_6 \}
+\end{equation}
+For payload lengths between $0$ and $9$ bytes, a single \gls{aes}-128 block suffices, hence the bytes of message $\mathbf m$ are repeated until the whole 16-byte block has been padded as illustrated by \Cref{fig:wrappadding_oneblock}.
+For a payload length of $11$ or $12$ bytes, two input blocks are required, as the message $\mathbf m$ would not fit in a single block.
+As shown in \Cref{fig:wrappadding_twoblocks}, the message $\mathbf m$ is then wrap padded to fill 32 bytes, corresponding to two \gls{aes} blocks.
+
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}
+		% Input blocks
+		\node (inmessage1) at (0,  0.25) [rectangle, fill, thick, minimum width = 2cm, minimum height = 1.5cm, top color = blue!50!green, bottom color = green!20!white] {};
+		\node (inmessage2) at (0, -0.75) [rectangle, fill, thick, minimum width = 2cm, minimum height = 0.5cm, top color = blue!50!green, bottom color = green!20!white] {};
+		\node (inblock) at (0, 0) [rectangle, text = black, draw, thick, minimum width = 2cm, minimum height = 2cm, align = center] {Plaintext};
+		\draw [thick, decoration = {brace, raise = 5pt}, decorate] (-1, -0.45) -- node[align = center, left = 7pt, font=\fontsize{8pt}{8pt}\selectfont] {12 byte\\message $\mathbf m$} (-1, 1);
+		\draw [thick, decoration = {brace, raise = 5pt}, decorate] (-1, -1) -- node[align = center, left = 7pt, font=\fontsize{8pt}{8pt}\selectfont] {wrap\\padding} (-1, -0.55);
+
+		% MAC extraction
+		\node (macsection) at (9, 0.8125) [rectangle, thick, draw, color = black!50!white, fill = black!50!white, minimum height = 0.375cm, minimum width = 2cm] {};
+		\node (mactag) at (4.5, -2) {\gls{mac} Tag $\mathbf t$ (2 \ldots 5 bits)};
+		\draw [thick] ($(macsection.east)$) -> ($(macsection.east) + (0.5, 0)$);
+		\draw [thick, -latex] ($(macsection.east) + (0.5, 0)$) |- (mactag.east);
+
+		% Output blocks
+		\node (outblock) at (9, 0) [rectangle, draw, thick, minimum width = 2cm, minimum height = 2cm, align = center] {Ciphertext};
+
+		% AES operation
+		\node (aes) at (4.5, 0) [rectangle, draw, rounded corners = 3pt, fill = black!10!white, minimum height = 1cm, minimum width = 4cm] {\textbf{\texttt{AES-128-CBC}}};
+		\node (privkey) at (4.5, 2) {Key $\mathbf k$ (\gls{nak})};
+
+		% Arrows
+		\draw [thick, -latex] (inblock) -> (aes.west);
+		\draw [thick, -latex] (privkey.south) -> (aes.north);
+		\draw [thick, -latex] (aes.east) -> (outblock);
+	\end{tikzpicture}
+	\caption{Construction of the \gls{mac} tag for a message $\mathbf m$ not longer than one \gls{aes} block}
+	\label{fig:wrappadding_oneblock}
+\end{figure}
+
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}
+		% Input blocks
+		\node (inmessage1) at (0,  0.889) [rectangle, fill, thick, minimum width = 2cm, minimum height = 2.222cm, top color = blue!50!green, bottom color = green!20!white] {};
+		\node (inmessage2) at (0, -1.111) [rectangle, fill, thick, minimum width = 2cm, minimum height = 1.778cm, top color = blue!50!green, bottom color = green!20!white] {};
+		\node (inblock1) at (0, -1) [rectangle, text = white, draw, thick, minimum width = 2cm, minimum height = 2cm, align = center] {Plaintext\\Block 2};
+		\node (inblock2) at (0,  1) [rectangle, text = white, draw, thick, minimum width = 2cm, minimum height = 2cm, align = center] {Plaintext\\Block 1};
+		\draw [thick, decoration = {brace, raise = 5pt}, decorate] (-1, -0.200) -- node[align = center, left = 7pt, font=\fontsize{10pt}{10pt}\selectfont] {18 byte\\message $\mathbf m$} (-1, 2);
+		\draw [thick, decoration = {brace, raise = 5pt}, decorate] (-1, -2) -- node[align = center, left = 7pt, font=\fontsize{10pt}{10pt}\selectfont] {wrap\\padding} (-1, -0.244);
+
+		% MAC extraction
+		\node (macsection) at (9, -0.1875) [rectangle, thick, draw, color = black!50!white, fill = black!50!white, minimum height = 0.375cm, minimum width = 2cm] {};
+		\node (mactag) at (4.5, -2.5) {\gls{mac} Tag $\mathbf t$ (2 \ldots 5 bits)};
+		\draw [thick] ($(macsection.east)$) -> ($(macsection.east) + (0.5, 0)$);
+		\draw [thick, -latex] ($(macsection.east) + (0.5, 0)$) |- (mactag.east);
+
+		% Output blocks
+		\node (outblock1) at (9, -1) [rectangle, draw, thick, minimum width = 2cm, minimum height = 2cm, align = center] {Ciphertext\\Block 2};
+		\node (outblock2) at (9,  1) [rectangle, draw, thick, minimum width = 2cm, minimum height = 2cm, align = center] {Ciphertext\\Block 1};
+
+		% AES operation
+		\node (aes) at (4.5, 0) [rectangle, draw, rounded corners = 3pt, fill = black!10!white, minimum height = 1cm, minimum width = 4cm] {\textbf{\texttt{AES-128-CBC}}};
+		\node (privkey) at (4.5, 2) {Key $\mathbf k$ (\gls{nak})};
+
+		% Arrows
+		\draw [thick, -latex] (inblock1) -> ($(aes.west) + (0, -0.2)$);
+		\draw [thick, -latex] (inblock2) -> ($(aes.west) + (0,  0.2)$);
+		\draw [thick, -latex] (privkey.south) -> (aes.north);
+		\draw [thick, -latex] ($(aes.east) + (0, -0.2)$) -> (outblock1);
+		\draw [thick, -latex] ($(aes.east) + (0,  0.2)$) -> (outblock2);
+	\end{tikzpicture}
+	\caption{Construction of the \gls{mac} tag for a message $\mathbf m$ longer than one \gls{aes} block, thus requiring two blocks}
+	\label{fig:wrappadding_twoblocks}
+\end{figure}
+
+\subsection{Open Implementation}
+\label{sec:uplink_mac_reimp}
+By analyzing symbol names in the compiled, closed-source Sigfox library and comparing them with common \gls{aes} implementations, it was apparent that at least on the \textit{Pycom SiPy} device, Sigfox internally uses Texas Instrument's open source \gls{aes}-128 implementation \cite{tiaes}.
+Further analysis was then carried out by monitoring function calls to the encryption function and tracing back function invocations.
+The Open Implementation in \texttt{librenard} also uses the same \gls{aes}-128 implementation by Texas Instruments at its core and emulates \gls{cbc} encryption and Sigfox's wrap padding on top of that.
+
+\texttt{librenard} can both generate uplink frames with valid \gls{mac} tags as well as check \gls{mac} tags of given frames in case the \gls{nak} of the object that transmitted the frame is known.
+It is inherently impossible to check the \gls{mac} tag of a frame from a device whose \gls{nak} is not known.
+The \gls{nak} of the examined Sigfox object (\textit{Pycom SiPy}) was obtained by dumping its flash memory.
+
+\subsection{Result}
+\label{sec:uplink_mac_result}
+\texttt{librenard} produces valid \gls{mac} tags for a given \gls{nak} for all possible message lengths.
+For this reason, it can be assumed that all details about \gls{mac} generation have been successfully understood.
+Remarkably, sending an invalid \gls{mac} tag in an otherwise valid frame does not generate any user-facing error e.g. on Sigfox's web interface but just causes the Sigfox cloud to discard the frame without any warning whatsoever.
+
+Interestingly and importantly, not only the frame's payload is protected by the \gls{mac} tag.
+This seems natural: Typically, not only the content (payload) of a Sigfox uplink frame is relevant, but also which device it originated from and the point in time at which the message was sent.
+For instance, in a scenario where a switch on a Sigfox object is supposed to trigger some action, such as opening or closing a door, it is crucial that \gls{sn} and flags are also integrity-checked.
+The \gls{sn} has to be authenticated to make sure an adversary cannot just trigger the button's action by replaying an already recorded message with an incremented \gls{sn} value.
+In case the state of the switch (on / off) is transmitted as a single-bit message, the flags contain the value of that bit and therefore also need to be protected by the \gls{mac} tag.
+
+Having said this, the integrity checking of the device ID can be considered to be superfluous.
+Looking at the currently available Sigfox objects, it seems that every Sigfox object's device ID is linked to exactly one secret key (\gls{nak}).
+These \glspl{nak} should necessarily be randomly generated and unique, otherwise security would be already compromised.
+Therefore, if an attacker modifies the device ID in an uplink frame, either the altered device ID is non-existent and the frame thereby invalid or, in case the new device ID exists, a different \gls{nak} is associated with it.
+Using this different \gls{nak} as an input for the \gls{mac} function will obviously result in a different \gls{mac} tag, so that integrity checking on the Sigfox cloud will fail for the modified message, thus the frame will be discarded anyway.
+
+Generating a \gls{mac} tag by shortening a longer tag calculated using a \gls{cbcmac} algorithm might seem dubious from a cryptographic perspective, but appears to be a valid approach.
+\gls{cbcmac} itself without truncation was proven to be secure \cite{cbcmac_security} as long as some common pitfalls \cite{cbcmac_pitfalls} (e.g. not reusing the \gls{nak} for encryption) are taken into account, which is the case for Sigfox.
+According to \cite[Section 5]{rfc2104}, truncating \gls{mac} tags is a common practice and even brings some benefits with it.
+The security of \gls{mac} tag truncation is explored in greater detail in \cite{cbcmac_truncation}.
+The shortening might be used in order to reduce the length of the uplink transmission and thereby reduce transmission time, energy consumption and the likelihood of transmission collisions.
+
+\FloatBarrier
+\section{CRC Computation}
+\label{sec:uplink_crc}
+\subsection{Introduction: CRC}
+\label{sec:uplink_crc_introduction}
+\gls{crc} is an algorithm that produces a short checksum from a larger chunk of data.
+It can be used to reliably detect errors when that data is transmitted, but is not intended to be used for correcting these errors \cite{hackersdelight}.
+\glspl{crc} are considered to represent a good compromise between simpler and less reliable techniques such as parity bits, which can only detect single-bit errors, on one hand and more involved algorithms such as cryptographic hash functions, whose applications usually lie within the field of cryptography, on the other hand.
+Moreover, they are relatively easy to implement in both software and hardware.
+Most prominently, \gls{crc} algorithms differ in the length $n$ of their output and in an $n + 1$-bit pattern called the \gls{crc}'s divisor or ``generator polynomial'' \cite{hackersdelight}.
+Common output lengths are $n = 8$ (called CRC-8), $n = 16$ (called CRC-16) and $n = 32$ (called CRC-32).
+
+The basic algorithm for generating \gls{crc} checksums is based on polynomial division with modulo-2 arithmetic, also called the arithmetic of a \gls{gf} of two elements or $\GF(2)$-arithmetic.
+More in-depth introductions to $\GF(2)$-arithmetic can be found in \cite[Section 2.2]{ecctechniques} and \cite[Section 3.2]{ecctechniques}, but as a quick reminder, the rules for addition, multiplication and subtraction are given in \Cref{tab:gf_rules}.
+
+\begin{table}[h]
+\centering
+\begin{subfigure}{0.2\textwidth}
+	\centering
+	\textbf{Addition}
+	\vskip 0.2cm
+	\begin{tabular}{c | c c}
+		+ & 0 & 1 \\ \hline
+		0 & 0 & 1 \\
+		1 & 1 & 0
+	\end{tabular}
+\end{subfigure}
+\begin{subfigure}{0.2\textwidth}
+	\centering
+	\textbf{Multiplication}
+	\vskip 0.2cm
+	\begin{tabular}{c | c c}
+		$\cdot$ & 0 & 1 \\ \hline
+		0 & 0 & 0 \\
+		1 & 0 & 1
+	\end{tabular}
+\end{subfigure}
+\begin{subfigure}{0.2\textwidth}
+	\centering
+	\textbf{Subtraction}
+	\vskip 0.2cm
+	\begin{tabular}{c | c c}
+		- & 0 & 1 \\ \hline
+		0 & 0 & 1 \\
+		1 & 1 & 0
+	\end{tabular}
+\end{subfigure}
+\caption{Addition, multiplication and subtraction tables for $\GF(2)$-arithmetic / modulo-2 arithmetic as given in \cite[Section 2.2]{ecctechniques}}
+\label{tab:gf_rules}
+\end{table}
+
+The chunk of data the checksum is calculated for is interpreted as a polynomial where the bits correspond to the coefficients of the polynomial, which are either $0$ or $1$.
+For instance, a single byte of data \texttt{0b01101101} would become a polynomial $M(X) = X^6 + X^5 + X^3 + X^2 + 1$.
+The \gls{crc} checksum then is nothing but the binary representation of the remainder polynomial $R(X)$ of the polynomial division $(M(X) \cdot X^n) \, / \, G(X)$, where $G(X)$ denotes the \gls{crc}'s generator polynomial.
+This can also be written as
+\begin{equation}
+	R(X) = M(X) \cdot X^n \,\bmod\, G(X)
+	\label{eq:crc_basic_equation}
+\end{equation}
+Mind that during polynomial division, $\GF(2)$ arithmetic is applied.
+The \gls{crc} checksum is then typically transmitted along with the message.
+Validation of a \gls{crc} checksum can be accomplished by different means, for instance by just calculating the checksum for the message on the receiver side using the same algorithm and comparing it to the checksum that was sent.
+Alternatively, the receiver can test if $(M(X) \cdot X^n  + R(X)) \, \bmod \, G(X)$ is zero.
+
+According to \cite[Section 14]{crcguide}, a practical \gls{crc} algorithm is unequivocally characterized by a set of seven parameters including the width $n + 1$ of the generator polynomial, its value $G(X)$ and several initialization values and Boolean values.
+Thus, knowing the size of a \gls{crc} checksum, the number of possible specific \gls{crc} implementations is finite.
+Since some generator polynomials have better error detection properties than others \cite[Section 7]{crcguide}, only a very limited set of generator polynomials and thus \gls{crc} implementation are actually in use.
+
+\subsection{Implementation by Sigfox}
+\label{sec:uplink_crc_realization}
+As outlined in \Cref{sec:framestructure_realization}, Sigfox uses a 16-bit checksum at the end of the uplink frame.
+Knowing this, it stood to reason that this 16-bit field contained a value generated by a \gls{crc}-16 algorithm.
+This hypothesis could be proven by finding the right set of parameters that describe the \gls{crc} algorithm in use.
+By then computing \gls{crc} checksums for various uplink frames and comparing them to the included \gls{crc}-16 checksum, all parameter set candidates except for one could be eliminated.
+
+In conclusion, the Sigfox uplink uses the generator polynomial
+\begin{equation}
+	G(X) = X^{16} + X^{12} + X^5 + 1
+\end{equation}
+whose hexadecimal representation is \texttt{0x1021} (the highest power of a generator polynomial, here $X^{16}$, is by convention not included in the binary / hexadecimal representation).
+This polynomial is often known as the ``CRC-16-CCITT'' polynomial, since it was recommended by the former \gls{ccitt} in various standards \cite{ccittcrc} and is hence still widely in use today \cite[Section 14-2]{hackersdelight}.
+Other than that, the Sigfox uplink's \gls{crc} algorithm does not deviate from the standard method of calculating a \gls{crc} value described in the previous \Cref{sec:uplink_crc_introduction} except for that the 16-bit \gls{crc}-16 binary value is inverted before transmission, in other words all bits in the \gls{crc}-16 checksum are flipped.
+
+Naturally, knowing the algorithm used for calculating a checksum is not enough for actually computing it - one also needs to know the input message that is interpreted as the dividend polynomial $M(X)$.
+In the case of a Sigfox uplink, the whole packet consisting of flags, \gls{sn}, device ID, payload and \gls{mac} tag is used as input to the \gls{crc}-16 algorithm.
+The complete process of computing the \gls{crc} checksum and the composition of the packet is depicted in \Cref{fig:uplink_crc_computation}.
+
+\begin{figure}[h]
+	\centering
+
+	\def\pbitsize{0.08} % x-size of bit in packet
+	\def\lineheight{0.8}
+	\def\pktoffsety{0}
+	\def\algoffsety{-2}
+
+	\definecolor{packetcolor}{rgb}{0.9,1.0,0.8}
+	\definecolor{flagscolor}{rgb}{0.8,0.9,1.0}
+
+	\begin{tikzpicture}[font=\sffamily]
+		% Packet format
+		\draw [line width = 0.5mm] (0, \pktoffsety - \lineheight) rectangle (160 * \pbitsize, \pktoffsety);
+		\draw [thick] (0, \pktoffsety - \lineheight) rectangle (4 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize F.};
+		\draw [thick] (4 * \pbitsize, \pktoffsety - \lineheight) rectangle (16 * \pbitsize, \pktoffsety) node[pos=.5] {SN};
+		\draw [thick] (16 * \pbitsize, \pktoffsety - \lineheight) rectangle (48 * \pbitsize, \pktoffsety) node[pos=.5] {Device ID};
+		\foreach \i in {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+			\draw [dashed] (48 * \pbitsize, \pktoffsety - \lineheight) rectangle (48 * \pbitsize + \i * 8 * \pbitsize, \pktoffsety) node[pos=.5] {};
+		}
+		\draw [thick, fill=white, text opacity=1.0, fill opacity=0.6] (160 * \pbitsize, \pktoffsety) rectangle (48 * \pbitsize, \pktoffsety - \lineheight) node[pos=.5] {Payload and \gls{mac} Tag (2 / 3 / 6 / 10 / 14 byte)};
+
+		% Packet bit numbers
+		\foreach \x in {0, 4, 16, 48} {
+			\draw [thick] (\x * \pbitsize, \pktoffsety) -- (\x * \pbitsize, \pktoffsety + 0.1);
+			\node [anchor=south] at (\x * \pbitsize, \pktoffsety) {\x};
+		}
+
+		% Message m braces
+		\draw [thick, decoration = {brace, raise = 5pt}, decorate] (160 * \pbitsize, \pktoffsety) -- node[align = center, right = 7pt, font=\fontsize{10pt}{10pt}\selectfont] {packet,\\interpreted as\\polynomial $M(X)$} (160 * \pbitsize, \pktoffsety - \lineheight);
+
+		% CRC function
+		\node [rectangle, rounded corners = 3pt, fill = black!10!white, draw, thick, minimum width = 4cm, minimum height = 1.1cm] (macfunction) at (30 * \pbitsize, \algoffsety) {\textbf{\texttt{\gls{crc}-16-CCITT}}};
+		\draw [thick, -latex] (30 * \pbitsize, \pktoffsety - \lineheight) -- (macfunction.north);
+
+		% bit flip operation
+		\node [rectangle, rounded corners = 3pt, fill = black!10!white, draw, thick, minimum width = 4cm, minimum height = 1.1cm] (bitflip) at (100 * \pbitsize, \algoffsety) {Bitwise \textbf{\texttt{NOT}}};
+		\draw [thick, -latex] (macfunction.east) -- (bitflip.west);
+
+		% CRC output
+		\node (tag) at (165 * \pbitsize, \algoffsety) {\gls{crc} checksum};
+		\draw [thick, -latex] (bitflip.east) -- (tag.west);
+	\end{tikzpicture}
+	\caption{Computation of the \gls{crc}-16 Checksum for a given packet}
+	\label{fig:uplink_crc_computation}
+\end{figure}
+
+\subsection{Open Implementation}
+Various implementations of \gls{crc}-$n$ algorithms are available online, for instance in \cite{crcguide}.
+The most basic technique uses an $n$-bit shift register as shown in \cite[Figure 14-5]{hackersdelight}.
+While this method is not the fastest, it is relatively easy to implement and easily understandable.
+Since computation of \gls{crc} checksums in the case of the Sigfox uplink is only required once for creating the frame, this most basic method was chosen due to its simplicity.
+An implementation of the \gls{crc} algorithm suitable for Sigfox can be found in \texttt{librenard}, which can not only construct valid \gls{crc} checksums, but also check \glspl{crc} for given uplink frames.
+
+\subsection{Result}
+\texttt{librenard} can generate valid \glspl{crc} so that uplink frames with those checksums are accepted by the Sigfox network.
+Checking the \gls{crc} values for several recorded uplink frames of various lengths also yielded only positive results.
+Sending uplink frames with invalid \gls{crc} checksums causes the network to silently discard those uplinks.
+
+In some further research, the usage of the \gls{crc} checksum not only for error detection, but also for single-bit error correction could be explored.
+For instance, one could invert the bits of a suspected erroneous uplink packet one at a time and calculate the resulting \glspl{crc}.
+If only a single-bit error occurred, one of the \glspl{crc} should match the transmitted \gls{crc} value and a corrected message has been found.
+This procedure is also described in \cite[Section 14-2]{hackersdelight}.
+
+\FloatBarrier
+\section{Transmission Repetitions: Convolutional Codes}
+\label{sec:ul_repetitions}
+Up until this point, only the first of possibly three transmissions of the uplink frame has been discussed.
+The Sigfox uplink standard also defines a second and a third transmission though.
+While their data content and frame structure is identical, they use a different encoding based on convolutional codes that can be used for \gls{fec}, thus increasing Sigfox's robustness.
+
+\subsection{Introduction: ALOHA and Convolutional Coding}
+\subsubsection{Multiple access and ALOHA}
+Wireless networks use a shared physical medium, that is they transmit their radio waves over the air with everyone nearby being able to pick them up.
+A problem arises when two wireless stations that are in close proximity to each other, e.g. both are in the same base station cell, transmit on the same frequency at the same time.
+In that case, a so-called collision occurs, so that either the sender with the greater transmit power blankets the other message or both messages are superimposed, making decoding of either of the two transmissions impossible \cite{rfcomm}.
+
+In order to prevent or reduce those collisions, so-called multiple access methods have been developed.
+One common such technique is called \gls{fdma}, which is based on the idea of assigning different frequencies to different devices.
+While the result of such frequency allocation is that every device has its own frequency band in which it ideally does not have to expect any interference from other transmitters and can transmit continuously, this solution does not scale, as the electromagnetic spectrum does not provide an infinite number of viable frequency bands with desirable propagation properties.
+Usually, \gls{fdma} is described in terms of predefined channels that are allocated to users of the radio band, not as transceivers randomly choosing transmission frequencies \cite{rfcomm}.
+
+A different class of multiple access methods often called random access protocols tries not to completely eliminate collisions, but to decrease their frequency of occurrence and resolve them in case they do happen \cite[Section 5.3.2]{kurose}.
+Arguably the simplest of these protocols is the ALOHA protocol.
+When operating in ALOHA multiple access method, the wireless nodes immediately transmit every frame that is available to them, without listening for ongoing transmissions before sending (no carrier sensing).
+The original ALOHA protocol had some measures in place to detect collisions and retransmit frames until they were successfully received, but this functionality is not relevant for the Sigfox network.
+
+\subsubsection{Convolutional codes}
+Convolutional codes are a method for \gls{fec} that is distinct from conventional \gls{fec} using block codes.
+One of their benefits over block codes is that convolutional codes can operate on arbitrary-length bit streams and that they can be soft-decoded with e.g. the Viterbi algorithm which increases decoding efficiency compared to hard-decision decoding.
+Within the scope of this work, only the common \glspl{bcc} will be discussed, meaning both input and output data streams of the convolutional encoder consist of bits (``1'' or ``0'') and not symbols.
+There are different ways to introduce convolutional codes such as by their impulse response, their encoding circuit, their state diagram, their trellis diagram or their polynomial \cite[chapter 8]{ecctechniques}.
+The various representations of convolutional codes are mutually convertible, but a detailed explanation on how to transfer e.g. a polynomial representation to an encoding circuit would be outside the scope of this description and will be left to additional literature such as \cite[chapter 8]{ecctechniques}.
+In extension to the description of \glspl{crc} based on polynomials in \Cref{sec:uplink_crc_introduction}, the polynomial representation will be used to explain convolutional codes in the following.
+
+The input to the convolutional encoder (message) is an arbitrary-length binary string that can be represented as a polynomial $U(X)$.
+The specific convolutional code is characterized by its ``generator polynomial'' called $G(X)$.
+Just like with $U(X)$, the coefficients of the generator polynomial can only take the values ``0'' or ``1''.
+As depicted in \Cref{fig:convcoder}, a simple convolutional encoder with only one output just multiplies the input polynomial $U(X)$ with its generator polynomial $G(X)$ to calculate the encoded output polynomial $U(X)$ with respect to $\GF(2)$-arithmetic (see also \Cref{sec:uplink_crc_realization}) \cite[Equation (8.1)]{ecctechniques}:
+\begin{equation}
+	V(X) = U(X) \cdot G(X)
+	\label{eq:convcode_basic}
+\end{equation}
+
+\begin{figure}[h]
+	\centering
+	\scalebox{0.8}{
+		\begin{tikzpicture}[font=\sffamily]
+			\node (input) at (0, 0) {Input};
+			\node [rectangle, rounded corners = 3pt, fill = black!10!white, draw, thick, minimum width = 3cm, minimum height = 1.5cm, align = center] (topoly) at (3, 0) {Bits to\\Polynomial};
+			\node [rectangle, rounded corners = 3pt, fill = black!10!white, draw, thick, minimum width = 4.3cm, minimum height = 2.3cm, align = center] (convcoder) at (8, 0) {Convolutional Encoder\\$V(X) = U(X) \cdot G(X)$\\$(\GF(2)$-arithmetic)};
+			\node [rectangle, rounded corners = 3pt, fill = black!10!white, draw, thick, minimum width = 3cm, minimum height = 1.5cm, align = center] (frompoly) at (13, 0) {Polynomial\\to Bits};
+			\node (output) at (16, 0) {Output};
+
+			\draw [thick, -latex] (topoly.east) -- (convcoder.west) node[midway, above] {$U(X)$};
+			\draw [thick, -latex] (convcoder.east) -- (frompoly.west) node[midway, above] {$V(X)$};
+			\draw [thick, -latex] (input) -- (topoly);
+			\draw [thick, -latex] (frompoly) -- (output);
+		\end{tikzpicture}
+	}
+	\caption{Block diagram of a convolutional encoder with a single output}
+	\label{fig:convcoder}
+\end{figure}
+
+The generator polynomial is also commonly expressed as its binary or octal representation.
+For instance, a generator polynomial $G(X) = X^2 + 1$ has a binary representation \texttt{0b101} and an octal representation of $5_8$.
+As an example, the input bit string \texttt{0b10110}, or \mbox{$U(X) = X^4 + X^2 + X$} in polynomial representation, shall be encoded using this generator polynomial.
+The multiplication $U(X) \cdot G(X)$ in the convolutional encoder under $\GF(2)$-arithmetic yields:
+\begin{align}
+\begin{split}
+	V(X)	&= (X^4 + X^2 + X) \cdot (X^2 + 1) \\
+		&= X^6 + X^4 + X^3 + X^4 + X^2 + X \\
+		&= X^6 + X^3 + X^2 + X
+\end{split}
+\end{align}
+Therefore, in binary representation, the binary output string of the convolutional encoder is \texttt{0b1001110}.
+Typically, convolutional encoders have multiple outputs whose bit streams are interleaved so that various encodings of the same message can be transported in the same transmission.
+Since this is not the case for Sigfox uplinks, convolutional encoders with multiple outputs will not be discussed here.
+
+\subsection{Implementation by Sigfox}
+Even though \cite[Section 3.2]{sigfox_tech}, \cite{disk91radioprotocol}, \cite[Section 1.1]{rs_appnote} and other sources claim that every Sigfox uplink frame is repeated three times in total and nothing other than three transmissions were observed when transmitting uplinks with the \textit{Pycom SiPy} Sigfox object, according to \cite[Section 3.2]{stfirmware}, the transmission repetitions (also called \textbf{replicas}) are optional.
+In experiments, the Sigfox cloud accepted only transmitting the first, unencoded Sigfox frame (also called \textbf{initial transmission}) as described in the previous sections, hence the assumption that transmission replicas are part of the Sigfox standard, but are not necessary for operation.
+Contrary to what some official documentation by Sigfox might suggest \cite[Figure 3]{sigfox_tech}, Sigfox objects take a break before the transmission of each uplink replica.
+The duration of these breaks was verified to be approximately 500ms for the \textit{Pycom SiPy} as claimed by \cite[Section 3.2]{stfirmware} \cite[Figure 1-2]{rs_appnote}.
+
+The rationale behind uplink repetitions is described in \cite[Section 3.2 and 4.3]{sigfox_tech}.
+The Sigfox company argues that through ``time and frequency diversity'' \cite[Section 3.2]{sigfox_tech}, a greater capacity and higher quality of service is achieved.
+This is because the initial uplink transmission and the two replicas are transmitted at different points in time and also on different, randomly chosen frequencies within the uplink band.
+Thus, the probability of uplinks colliding is reduced, since uplinks would also have to collide during the transmission of all replicas, which is unlikely.
+According to \cite[Figure 9]{sigfox_tech}, this greatly improves the success rate of a transmission compared to pure ALOHA.
+It is interesting to note that the uplink frequency band is not slotted \cite[Section 3.2]{phyandmac} and that frequencies are not pre-allocated to specific devices as is common for \gls{fdma}.
+The special multiple access scheme characterized by combination of time diversity and random, continuous frequency diversity is also referred to as \gls{crfdma} \cite{crfdma} or \gls{rftdma} \cite{phyandmac}.
+
+However, the transmission replicas do not just retransmit the same data at a different frequency, but they also apply convolutional coding to the frame.
+This circumstance has already been described \cite{disk91radioprotocol}, but without mention of this type of encoding being a \gls{bcc} or any mathematical description of this encoding scheme.
+The convolutional coding is not being applied to the complete frame, but only to the portion starting from the flags, that is flags, \gls{sn}, device ID, payload, \gls{mac} tag and \gls{crc} checksum are all encoded using \glspl{bcc}.
+This section of the unencoded message will be referred to by its binary polynomial representation $U(X)$.
+The preamble is constant over all transmission repetitions whereas the frame type changes according to \Cref{tab:frametype}, which makes it possible to identify if a given uplink frame is one of the two replicas or the initial transmission.
+
+The first replica of the frame uses $G_1(X) = X^2 + 1$ as the convolutional encoder's generator polynomial or $5_8$ in octal representation.
+The second frame replica's generator polynomial is $G_2(X) = X^2 + X + 1$ corresponding to an octal representation of $7_8$.
+The binary representations of the convolutional-coded outputs $V_1(X) = U(X) \cdot G_1(X)$ and $V_2(X) = U(X) \cdot G_2(X)$ are truncated to the length of the unencoded frame.
+This way, a convolutional-coded uplink is just as long as the corresponding initial transmission.
+The format of the replica frames is also illustrated in \Cref{fig:uplink_replica_conv}.
+
+\begin{figure}[h]
+\begin{subfigure}{\textwidth}
+	\centering
+
+	\begin{tikzpicture}[font=\sffamily]
+		\def\pbitsize{0.075} % x-size of bit in packet
+		\def\lineheight{0.8}
+		\def\pktoffsety{0}
+
+		% Packet format
+		\draw [thick, color = white, draw = black, fill = black] (0 * \pbitsize, \pktoffsety - \lineheight) rectangle (20 * \pbitsize, \pktoffsety) node[pos=.5] {Pre.};
+		\draw [thick] (20 * \pbitsize, \pktoffsety - \lineheight) rectangle (32 * \pbitsize, \pktoffsety) node[pos=.5, align = center, font=\fontsize{8pt}{8pt}\sffamily] {Type\\TX 1};
+		\draw [thick] (32 * \pbitsize, \pktoffsety - \lineheight) rectangle (36 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize F.};
+		\draw [thick] (36 * \pbitsize, \pktoffsety - \lineheight) rectangle (48 * \pbitsize, \pktoffsety) node[pos=.5] {SN};
+		\draw [thick] (48 * \pbitsize, \pktoffsety - \lineheight) rectangle (80 * \pbitsize, \pktoffsety) node[pos=.5] {Device ID};
+		\foreach \i in {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+			\draw [dashed] (80 * \pbitsize, \pktoffsety - \lineheight) rectangle (80 * \pbitsize + \i * 8 * \pbitsize, \pktoffsety) node[pos=.5] {};
+		}
+		\draw [thick, fill=white, text opacity=1.0, fill opacity=0.8] (192 * \pbitsize, \pktoffsety) rectangle (80 * \pbitsize, \pktoffsety - \lineheight) node[pos=.5] {Payload and \gls{mac} Tag (2 / 3 / 6 / 10 / 14 byte)};
+		\draw [thick] (208 * \pbitsize, \pktoffsety - \lineheight) rectangle (192 * \pbitsize, \pktoffsety) node[pos=.5] {CRC};
+
+		\draw [thick, decoration = {brace, mirror, raise = 5pt}, decorate] (32 * \pbitsize, \pktoffsety - \lineheight) -- node[below=7pt] {Unencoded Message, $U(X)$} (208 * \pbitsize, \pktoffsety - \lineheight);
+
+		% Packet bit numbers
+		\foreach \x in {0, 20, 32, 48, 80, 192} {
+			\draw [thick] (\x * \pbitsize, \pktoffsety) -- (\x * \pbitsize, \pktoffsety + 0.1);
+			\node [anchor=south west] at (\x * \pbitsize, \pktoffsety) {\x};
+		}
+	\end{tikzpicture}
+	\caption{Initial transmission: No convolutional coding}
+\end{subfigure}
+\begin{subfigure}{\textwidth}
+	\centering
+
+	\begin{tikzpicture}[font=\sffamily]
+		\def\pbitsize{0.075} % x-size of bit in packet
+		\def\lineheight{0.8}
+		\def\pktoffsety{0}
+		\definecolor{convcodecolor}{rgb}{0.8,0.9,1.0}
+
+		% Packet format
+		\draw [thick, color = white, draw = black, fill = black] (0 * \pbitsize, \pktoffsety - \lineheight) rectangle (20 * \pbitsize, \pktoffsety) node[pos=.5] {Pre.};
+		\draw [thick] (20 * \pbitsize, \pktoffsety - \lineheight) rectangle (32 * \pbitsize, \pktoffsety) node[pos=.5, align = center, font=\fontsize{8pt}{8pt}\sffamily] {Type\\TX 2};
+		\draw [thick, fill = convcodecolor] (32 * \pbitsize, \pktoffsety - \lineheight) rectangle (36 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize F.};
+		\draw [thick, fill = convcodecolor] (36 * \pbitsize, \pktoffsety - \lineheight) rectangle (48 * \pbitsize, \pktoffsety) node[pos=.5] {SN};
+		\draw [thick, fill = convcodecolor] (48 * \pbitsize, \pktoffsety - \lineheight) rectangle (80 * \pbitsize, \pktoffsety) node[pos=.5] {Device ID};
+		\foreach \i in {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+			\draw [dashed] (80 * \pbitsize, \pktoffsety - \lineheight) rectangle (80 * \pbitsize + \i * 8 * \pbitsize, \pktoffsety) node[pos=.5] {};
+		}
+		\draw [thick, fill = convcodecolor, text opacity=1.0, fill opacity=0.8] (192 * \pbitsize, \pktoffsety) rectangle (80 * \pbitsize, \pktoffsety - \lineheight) node[pos=.5] {Payload and \gls{mac} Tag (2 / 3 / 6 / 10 / 14 byte)};
+		\draw [thick, fill = convcodecolor] (208 * \pbitsize, \pktoffsety - \lineheight) rectangle (192 * \pbitsize, \pktoffsety) node[pos=.5] {CRC};
+
+		\draw [thick, decoration = {brace, mirror, raise = 5pt}, decorate] (32 * \pbitsize, \pktoffsety - \lineheight) -- node[below=7pt] {$V_1(X) = U(X) \cdot (X^2 + 1)$} (208 * \pbitsize, \pktoffsety - \lineheight);
+
+		% Packet bit numbers
+		\foreach \x in {0, 20, 32, 48, 80, 192} {
+			\draw [thick] (\x * \pbitsize, \pktoffsety) -- (\x * \pbitsize, \pktoffsety + 0.1);
+			\node [anchor=south west] at (\x * \pbitsize, \pktoffsety) {\x};
+		}
+	\end{tikzpicture}
+	\caption{Second transmission / first replica: Convolutional coding with $G_1(X) = X^2 + 1$}
+\end{subfigure}
+\begin{subfigure}{\textwidth}
+	\centering
+
+	\begin{tikzpicture}[font=\sffamily]
+		\def\pbitsize{0.075} % x-size of bit in packet
+		\def\lineheight{0.8}
+		\def\pktoffsety{0}
+		\definecolor{convcodecolor}{rgb}{0.8,0.9,1.0}
+
+		% Packet format
+		\draw [thick, color = white, draw = black, fill = black] (0 * \pbitsize, \pktoffsety - \lineheight) rectangle (20 * \pbitsize, \pktoffsety) node[pos=.5] {Pre.};
+		\draw [thick] (20 * \pbitsize, \pktoffsety - \lineheight) rectangle (32 * \pbitsize, \pktoffsety) node[pos=.5, align = center, font=\fontsize{8pt}{8pt}\sffamily] {Type\\TX 3};
+		\draw [thick, fill = convcodecolor] (32 * \pbitsize, \pktoffsety - \lineheight) rectangle (36 * \pbitsize, \pktoffsety) node[pos=.5] {\scriptsize F.};
+		\draw [thick, fill = convcodecolor] (36 * \pbitsize, \pktoffsety - \lineheight) rectangle (48 * \pbitsize, \pktoffsety) node[pos=.5] {SN};
+		\draw [thick, fill = convcodecolor] (48 * \pbitsize, \pktoffsety - \lineheight) rectangle (80 * \pbitsize, \pktoffsety) node[pos=.5] {Device ID};
+		\foreach \i in {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} {
+			\draw [dashed] (80 * \pbitsize, \pktoffsety - \lineheight) rectangle (80 * \pbitsize + \i * 8 * \pbitsize, \pktoffsety) node[pos=.5] {};
+		}
+		\draw [thick, fill = convcodecolor, text opacity=1.0, fill opacity=0.8] (192 * \pbitsize, \pktoffsety) rectangle (80 * \pbitsize, \pktoffsety - \lineheight) node[pos=.5] {Payload and \gls{mac} Tag (2 / 3 / 6 / 10 / 14 byte)};
+		\draw [thick, fill = convcodecolor] (208 * \pbitsize, \pktoffsety - \lineheight) rectangle (192 * \pbitsize, \pktoffsety) node[pos=.5] {CRC};
+
+		\draw [thick, decoration = {brace, mirror, raise = 5pt}, decorate] (32 * \pbitsize, \pktoffsety - \lineheight) -- node[below=7pt] {$V_2(X) = U(X) \cdot (X^2 + X + 1)$} (208 * \pbitsize, \pktoffsety - \lineheight);
+
+		% Packet bit numbers
+		\foreach \x in {0, 20, 32, 48, 80, 192} {
+			\draw [thick] (\x * \pbitsize, \pktoffsety) -- (\x * \pbitsize, \pktoffsety + 0.1);
+			\node [anchor=south west] at (\x * \pbitsize, \pktoffsety) {\x};
+		}
+	\end{tikzpicture}
+	\caption{Third transmission / second replica: Convolutional coding with $G_2(X) = X^2 + X + 1$}
+\end{subfigure}
+	\caption{Unencoded first Sigfox uplink frame and convolutional-coded uplink replicas with different frame types corresponding to types in \Cref{tab:frametype}}
+	\label{fig:uplink_replica_conv}
+\end{figure}
+
+\subsection{Open Implementation}
+The implementation of the convolutional encoder in \texttt{librenard} is based on the shift register representation of convolutional codes, which is also a method to efficiently implement convolutional codes in hardware.
+For the polynomials $G_1(X)$ and $G_2(X)$ used by Sigfox, matching shift register schematics are shown in \Cref{fig:convcode_shiftreg}.
+In this representation, the contents of the shift registers are initialized to ``0'' before the encoding occurs.
+In \texttt{librenard}, the shift register is implemented in software, but the fundamental principle stays the same.
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}{0.45\textwidth}
+	\centering
+	\begin{tikzpicture}[font=\sffamily]
+		\draw [thick, -latex] (-0.5, 0.5) node [left] {$\mathbf u[n]$} -- (1, 0.5);
+		\draw [thick, fill = black!10!white] (1, 0) rectangle (2, 1);
+		\draw [thick, fill = black!10!white] (2, 0) rectangle (3, 1);
+		\node [anchor = south east] at (3, 1) {Shift Register};
+
+		\node (xor) [draw, thick, circle, minimum height = 0.5cm, minimum width = 0.5cm] at (2.5, -1.0) {};
+		\draw [thick] (xor.north) -- (xor.south);
+		\draw [thick] (xor.west) -- (xor.east);
+
+		\draw [thick, -latex] (0.5, 0.5) node[circ] {} |- (xor.west);
+		\draw [thick, -latex] (2.5, 0) -- (xor.north);
+		\draw [thick, -latex] (xor.east) -- +(1.2, 0) node [right] {$\mathbf v_1[n]$};
+	\end{tikzpicture}
+	\caption{$G_1(X) = X^2 + 1$}
+\end{subfigure}
+\begin{subfigure}{0.45\textwidth}
+	\centering
+	\begin{tikzpicture}[font=\sffamily]
+		\draw [thick, -latex] (-0.5, 0.5) node [left] {$\mathbf u[n]$} -- (1, 0.5);
+		\draw [thick, fill = black!10!white] (1, 0) rectangle (2, 1);
+		\draw [thick, fill = black!10!white] (2, 0) rectangle (3, 1);
+		\node [anchor = south east] at (3, 1) {Shift Register};
+
+		\node (xor1) [draw, thick, circle, minimum height = 0.5cm, minimum width = 0.5cm] at (2.5, -1.0) {};
+		\draw [thick] (xor1.north) -- (xor1.south);
+		\draw [thick] (xor1.west) -- (xor1.east);
+
+		\node (xor2) [draw, thick, circle, minimum height = 0.5cm, minimum width = 0.5cm] at (1.5, -1.0) {};
+		\draw [thick] (xor2.north) -- (xor2.south);
+		\draw [thick] (xor2.west) -- (xor2.east);
+
+		\draw [thick, -latex] (0.5, 0.5) node[circ] {} |- (xor2.west);
+		\draw [thick, -latex] (2.5, 0) -- (xor1.north);
+		\draw [thick, -latex] (xor1.east) -- +(1.2, 0) node [right] {$\mathbf v_2[n]$};
+		\draw [thick, -latex] (xor2.east) -- (xor1.west);
+		\draw [thick, -latex] (1.5, 0) -- (xor2.north);
+	\end{tikzpicture}
+	\caption{$G_2(X) = X^2 + X + 1$}
+\end{subfigure}
+	\caption{Implementation of convolutional codes as shift registers for polynomials $G_1(X)$ and $G_2(X)$. The input bit stream $\mathbf u[n]$ is encoded producing the output streams $\mathbf v_1[n]$ and $\mathbf v_2[n]$.}
+	\label{fig:convcode_shiftreg}
+\end{figure}
+
+\texttt{librenard} also has the ability to decode a convolutional-encoded Sigfox uplink frame.
+It does, however, not use the redundancy information in convolutional codes for error correction as the Viterbi algorithm and the like do.
+Instead, the decoding function is based on polynomial division with $\GF(2)$-arithmetic:
+Since the encoded messages $V_1(X)$ and $V_2(X)$ are the product of $U(X)$ and $G_1(X)$ or $U(X)$ and $G_2(X)$ respectively, their decoding is possible through polynomial division as \Cref{eq:convcode_basic} solved for $U(X)$ shows:
+\begin{equation}
+	U(X) = \frac{V(X)}{G(X)}
+\end{equation}
+Similar to the \gls{crc} algorithm, which is also based on $\GF(2)$-polynomial division but uses the remainder instead of the quotient, \texttt{librenard} implements a $\GF(2)$-arithmetic polynomial division function using a shift register.
+
+\subsection{Result}
+\texttt{librenard} is able to generate uplink replicas that match those generated by the \textit{Pycom SiPy} Sigfox object.
+Additionally, it can decode captured uplink replicas by evaluating the frame type value, deciding if the frame belongs to an initial transmission or to which replica and then reversing the convolutional encoding if necessary.
+While the replica implementation in \texttt{librenard} could be verified through comparison with the \textit{Pycom SiPy} and \cite{disk91radioprotocol}, it could not be tested on its conformity with the Sigfox network:
+As of May 2018, the Sigfox network does not seem to respond to replica transmissions\footnote{This is outdated as of October 2018: Reiteration of the same tests now show that both replica frames are also picked up by the base station and decoded. A single valid replica frame suffices for a successful uplink. Since this discovery was only made just before completion of the open Sigfox specifications, the exact behaviour of the base station was not investigated in detail.}.
+This conclusion is supported by the following observations:
+\begin{itemize}
+\item Sending the initial transmission only without any replica results in the Sigfox network accepting the frame and displaying it on the web interface
+\item The uplink is not displayed in any way if only first and second replica without the initial unencoded transmission are sent
+\item Sending the initial transmission with an erroneous bit (causing \gls{mac} and \gls{crc} verification to fail) and then sending correct replicas, again results in no uplink being displayed whatsoever
+\end{itemize}
+This leads to the assumption that while the Sigfox standard clearly defines uplink replicas, they are currently not being decoded by the network.
+They might have been originally conceived to make the network scalable to many Sigfox objects per network cell, but since Sigfox at this point is still a fairly new standard and probably without large-scale deployment, the probability for transmission collisions is still very low.
+Thus, the usage of replicas is currently not necessary for the functioning of the network.
+This also means that the additional benefit of better error correction capabilities through convolutional coding is currently not in use.
+
+The random choice of uplink frequencies for initial transmission and both replicas within the uplink band was not analyzed and may be subject to further investigation.
+It is not evident whether this choice is based on actual (pseudo-)randomness or follows some underlying rule, e.g. if the frequencies of the replica transmissions depend on the unencoded transmission's frequency.
+Another area for additional work might be the implementation of a more advanced decoding scheme such as the Viterbi algorithm that actually utilizes the error correction information that is made available through the use of convolutional codes.
+
+\FloatBarrier
+\section{Preliminary Security Assessment}
+\label{sec:uplink_security}
+Under consideration of the insights gained, a preliminary security assessment of the uplink protocol was carried out.
+This assessment is in no way complete and only covers some of the more obvious security-related issues with the protocol design.
+
+Most importantly, the analysis conducated as part of this work shows that Sigfox's claims concerning the uplink's security are met and that security-related features such as \gls{mac} tag checking are properly implemented by the network - however, Sigfox does not claim particularly high security standards.
+For instance, Sigfox does not claim that the upload payload is encrypted or even protected from eavesdropping by any means (secrecy), which is actually not the case.
+Sigfox does claim \cite[Section 5.1.2]{sigfox_tech} that messages are authenticated though, which is, in principle, ensured by the \gls{mac} tag that protects all relevant sections of the uplink frame.
+Still, four possible, yet not very critical, attacks that might even compromise authenticity checking will be presented in the following.
+
+In a first scenario, an adversary might record all uplink transmissions of a specific Sigfox object.
+If one of the recorded messages is replayed by the adversary, the Sigfox network will reject the uplink if its \gls{sn} is not within the validity window, which should be the case since the validity window is shifted every time a valid uplink frame is received as shown in \Cref{sec:framestructure_realization}.
+In this scenario, however, the adversary uses the fact that the \gls{sn} has to be represented in a frame field consisting of a fixed number of bits which forces the protocol to recycle \glspl{sn} every time an integer overflow occurs.
+This scenario is not entirely academic since the \gls{sn} is made up of only 12 bits so that the range of possible values is constrained from 0 to $2^{12} = 4096$.
+Taking 140 messages, which is the maximum number of uplinks an object is permitted to send daily according to common subscription plans, as a basis for a worst-case consideration, we can conclude that the sequence number will inevitably roll over after less than $\left \lceil \frac{4096}{140} \right \rceil = 30$ days.
+Thus, a recorded uplink frame that is valid for a given validity window will be valid again after the intermediate transmission of $4096$ uplinks, which can be the case after less than $30$ days and can be detected by monitoring the intermittently occurring transmissions.
+By awaiting the moment at which a recorded uplink is eventually valid once again and then replaying the message, an adversary can effectively circumvent Sigfox's security measures.
+While the attacker cannot alter any of the contents of the recorded frame, the ability to replay recorded frames can still pose a severe threat in some use cases that Sigfox is inappropriate for such as employing an uplink-transmitting object as a key for a vehicle or in a garage door opener-like manner.
+By monitoring a Sigfox object for a longer timespan and recording a repertoire of frames, an attacker will be able to seriously disrupt the specific object by replaying matching frames.
+This way, even appropriate use cases of Sigfox such as asset tracking or utilities monitoring may be impeded and sabotaged.
+
+The second scenario addresses methods through which an attacker could gain access to an object's \gls{nak}.
+Trivially, if an attacker gains physical access to the object, they might be able dump the object's memory and thereby obtain the \gls{nak}.
+Whether this is possible or not depends on where the specific Sigfox object implementation stores the \gls{nak} and whether that storage is easily accessible.
+In the case of the \textit{Pycom SiPy} that was examined, the \gls{nak} was stored in flash memory which could be dumped over the object's USB interface used for programming.
+More interestingly, some Sigfox objects do not come with the \gls{nak} preloaded.
+Instead, the key has to be downloaded to the Sigfox object through another channel.
+In case of the \textit{Pycom SiPy}, the \gls{nak} was provisioned by the \textit{SiPy}'s firmware update tool which retrieved the key over the internet.
+While an inquiry into the security of these provisioning channels would certainly be interesting and could possibly reveal interesting information about Sigfox's security, it would be outside the scope of this investigation and was thus not performed.
+While this scenario is not a very practical threat to the integrity of Sigfox uplinks, it is clearly a threat to Sigfox's business model which depends on being able to essentially sell \glspl{nak} for individual objects.
+If the owners of these devices can read their objects' \glspl{nak} though, they can clone these objects by providing the clones with identical keys.
+In that case, all of the clones share the same Sigfox network subscription which obviously shrinks Sigfox's revenue.
+This issue appears to be known by Sigfox, which presented several mitigations \cite[chapter 5]{sigfox_secure}.
+One suggested solution that would prevent all of the security issues presented in the second scenario is the usage of so-called ``secure element'' chips such as the STMicroelectronics STSAFE-A1SX\footnote{\url{https://www.st.com/en/secure-mcus/stsafe-a1sx.html}} specifically designed for Sigfox that claims to come with preprovisioned Sigfox network keys that never have to be exposed outside the chip, which would make it impossible to obtain the contained \gls{nak} non-intrusively.
+
+In a third scenario, an attacker could try to forge an uplink frame by hoping to guess a correct \gls{mac}.
+In a worst-case scenario (payload length of 1 bit or 1 / 4 / 8 / 12 bytes), the \gls{mac} tag value only contains 16 bits of entropy.
+This implies that on average, after only $\frac{2^{16}}{2} = 32768$ attempts, a valid \gls{mac} should be found.
+Continuing the worst case scenario, the shortest time required to send a Sigfox uplink is when using the shortest possible frame class, which is class A with just 112 bits per frame (20 bits preamble, 12 bits frame type, 64 bits packet and 16 bits \gls{crc}) and transmitting that in a regulatory zone which allows for the highest possible bit rate (which is 600 bit/s, e.g. in the USA \cite{sigfox_ietf}).
+Then, the time it takes to transmit one uplink frame is $\frac{112 \mathrm{bit}}{600 \mathrm{bit}/\mathrm{s}} \approx 0.187 \mathrm{s}$.
+Therefore, by transmitting malicious uplinks with guessed \gls{mac} tags one after the other, a matching \gls{mac} should be found after $\frac{2^{16}}{2} ~ 0.187 \mathrm{s} \approx 6128 \mathrm{s}$ on average, which is less than two hours.
+By not only using one malicious transmitter but multiple transmitters at multiple base stations or by transmitting on multiple frequencies within the uplink band at the same time, this duration can be reduced even further.
+However, mitigation of these kinds of attacks should be possible by e.g. blocking a specific device ID for a single base station after too many failed attempts.
+In the scope of this work, sending malicious uplinks by guessing the \gls{mac} was not attempted, because a such excessive use of the radio spectrum would also be in violation of duty cycle regulations for the uplink band imposed by the German Federal Network Agency (Bundesnetzagentur) \cite[page 3]{bnetza_srd}.
+
+In a fourth scenario, if availability is also considered a protection-worthy security goal, an attacker might be able to lock out a Sigfox device from accessing the network.
+The main idea of this attack is to shift the validity window of accepted uplink \glspl{sn} so that the legitimate Sigfox device's current \gls{sn} lies outside this range.
+There are two possibilities to achieve this, which both basically involve sending an uplink frame with an \gls{sn} greater than the legitimate device's \gls{sn}, but still inside the range where the base station accepts it:
+One of them is to apply the \gls{mac} guessing method described in the third scenario, the other one is to send a previously captured uplink frame with a greater sequence number, similar to the replay attack presented in the first scenario.
+Naturally, the replay method is only possible if an uplink frame with an \gls{sn} greater than the legitimate \gls{sn} has been recorded by the adversary, which could be the case given the short range of possible \glspl{sn}.
+
+On the upside, it can be noted that an adversary is practically unable to compute an object's \gls{nak} even if monitoring all traffic between object and base station.
+The eavesdropper can gain a collection of plaintext and corresponding \gls{mac} tag values, but computation of the object's \gls{nak} requires a brute-force attack, that is the attacker would have to try every one of the $2^{128}$ mathematically possible \gls{aes}-128 keys, since the \gls{aes} cipher is secure even against so-called known-plaintext attacks.
+There are currently no known vulnerabilities of \gls{aes}-128 severe enough to make any computational efforts to obtain encryption keys practically feasible.

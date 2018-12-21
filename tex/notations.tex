@@ -1,0 +1,42 @@
+\chapter*{Notations \label{chap:Notations}}
+
+\addcontentsline{toc}{chapter}{Notations}
+\markboth{Notations}{Notations}
+
+\section*{Common Notations}
+\setlength\extrarowheight{0.5em}
+\begin{flushleft}
+\begin{longtable}{>{\raggedright}p{0.3\textwidth} >{\raggedright}p{0.69\textwidth}}
+$x$ & scalar variables: italic lower case letters \tabularnewline
+$x\left(t\right)$ & functions of continuous variables: argument is placed in round parentheses \tabularnewline 
+$r = a \, \bmod \, d$ & modulo operation with expanded definition for negative and real values; $r$ (remainder of the division) is chosen so that there exists a quotient $q \in \mathbb{Z}$ that satisfies $a = d \cdot q + r$ and $0 \leq r$ and $|r| < |d|$ \tabularnewline
+\texttt{0b} & digits with this prefix are to be interpreted as unsigned binary numbers or strings, first bit is most significant \tabularnewline
+\texttt{0x} & digits with this prefix are to be interpreted as hexadecimal numbers or strings, first nibble is most significant \tabularnewline
+$a \oplus b$ & XOR operator, applicable to single bits or bitwise to bit strings / bit vectors \tabularnewline
+\end{longtable}
+\end{flushleft}
+\setlength\extrarowheight{0em}
+
+\section*{Coding, Scrambling and Cryptography-related Notations}
+\setlength\extrarowheight{0.5em}
+\begin{flushleft}
+\begin{longtable}{>{\raggedright}p{0.3\textwidth} >{\raggedright}p{0.69\textwidth}}
+$X$ & variables that can take the binary values ``0'' or ``1'': italic upper case letters \tabularnewline
+$A(X)$ & functions of binary variables that output a binary value: italic upper case letters \tabularnewline
+$\mathbf a$ & row vectors with elements that can take the binary values ``0'' or ``1'': bold, lower case letters \tabularnewline
+$\mathbf M$ & matrices with elements that can take the binary values ``0'' or ``1'': bold, upper case letters \tabularnewline
+$\mathbf M^T$ & transpose of matrix $\mathbf M$\tabularnewline
+$A(X) \, \bmod \, B(X)$ & remainder $R(X)$ of polynomial division of $A(X)$ divided by $B(X)$; $R(X)$ is the polynomial of degree less than $B(X)$, so that a polynomial $Q(X)$ exists with $A(X) = Q(X) \cdot B(X) + R(X)$ \tabularnewline
+$A(X) / B(X)$, $\frac{A(X)}{B(X)}$ & polynomial division $A(X)$ divided by $B(X)$ \tabularnewline
+$\GF(n)$ & Galois field with $n$ elements \tabularnewline
+$\mathbf u\left[n\right]$  & $n$\textsuperscript{th} bit in binary bit string / bit stream $\mathbf u$ with discrete integer variable $n$ \tabularnewline
+$A(X) \cdot B(X)$ & multiplication of two functions of $X$, e.g. two polynomials \tabularnewline
+$\mathbf 0^n$ & zero row vector; if $n$ is given, it is comprised of $n$ zeroes; otherwise, the number of zeroes is chosen to fit the equation \tabularnewline
+$\mathbf I^k$ & $k \times k$ identity matrix \tabularnewline
+$\mathbf b ~ \mathbf A$ & matrix-vector-multiplication of row vector $\mathbf b$ with matrix $\mathbf A$ \tabularnewline
+$\mathbf u^{(i)}$ & for collections of vectors $u^{(1)}$, $u^{(2)}$, \ldots, $u^{(n)}$, the $i$\textsuperscript{th} vector is denoted by a superscripted $(i)$ as to not cause confusion with the $i$\textsuperscript{th} element of that vector \tabularnewline
+$\mathbf y \leftarrow \mathrm{\textsf{Func}}_{\mathbf k}(x)$ & running the algorithm $\mathrm{\textsf{Func}}$ on input row vector $\mathbf x$ and assigning the output to row vector $\mathbf y$; if supplied, row vector $\mathbf k$ is an additional input that randomizes the $\mathrm{\textsf{Func}}$ algorithm, e.g. a randomly generated key \tabularnewline
+\end{longtable}
+\end{flushleft}
+\setlength\extrarowheight{0em}
+

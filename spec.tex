@@ -1,0 +1,137 @@
+\documentclass[12pt,a4paper, oneside, bibliography=totoc, parskip=half]{scrreprt}
+
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman,english]{babel}
+\usepackage{usebib}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{mathptmx}
+\usepackage[scaled]{helvet}
+\usepackage{courier}
+\usepackage{textcomp}
+\usepackage{eurosym}
+\usepackage{units}
+\usepackage{changepage}
+\usepackage{setspace}
+\usepackage{longtable}
+\usepackage{trfsigns}
+\usepackage{listings}
+\usepackage{ragged2e}
+\usepackage{ifthen}
+\usepackage{censor}
+\usepackage{lipsum}
+\usepackage[absolute,overlay]{textpos}
+\usepackage{scrpage2} 
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{psfrag,xcolor}
+\usepackage[hidelinks,breaklinks=true,backref=page]{hyperref}
+\usepackage{breakurl}
+\usepackage[acronym, symbols, toc, nomain, translate=babel, nogroupskip]{glossaries}
+\usepackage{bytefield}
+\usepackage{pgfplots}
+\usepackage{subcaption}
+\usepackage{circuitikz}
+\usepackage{makecell}
+\usepackage{cleveref}
+\usepackage{placeins}
+\usepackage{float}
+
+% page setup
+\automark[chapter]{section}
+\pagestyle{scrheadings}
+\clearscrheadfoot 
+\rehead{\pagemark} 
+\rohead{\pagemark}
+\lehead{\headmark}
+\lohead{\headmark}
+\setheadsepline{0.4pt}
+
+% bibtex setup
+\newbibfield{author}
+\bibinput{tex/bib}
+
+% acronym list setup
+\newglossarystyle{acrlong}{
+	\setglossarystyle{long}
+	\renewcommand{\glossentry}[2]{
+		\glsentryitem{##1}\glstarget{##1}{\glossentryname{##1}} &
+		\glossentrydesc{##1}\tabularnewline
+	}
+}
+
+% symbol list setup
+\newglossarystyle{symblong}{
+	\setglossarystyle{long}
+	\setlength{\glsdescwidth}{0.8\hsize}
+	\renewcommand{\glossentry}[2]{
+		\glsentryitem{##1}\glstarget{##1}{\glossentryname{##1}} &
+		\glossentrydesc{##1}\tabularnewline
+	}
+}
+
+% tikz setup
+\pgfplotsset{compat=1.9}
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{positioning}
+\usetikzlibrary{external}
+\usetikzlibrary{patterns}
+\usetikzlibrary{quotes}
+\usetikzlibrary{angles}
+\usetikzlibrary{babel}
+\usetikzlibrary{calc}
+\tikzexternalize[prefix=external-figures/]
+
+% "listing" float
+\newfloat{lstfloat}{htbp}{lop}
+\floatname{lstfloat}{Listing}
+\Crefname{lstfloat}{Listing}{Listings}
+
+% additional math operators
+\DeclareMathOperator{\Tag}{\textsf{Tag}}
+\DeclareMathOperator{\Mac}{\textsf{Mac}}
+\DeclareMathOperator{\GF}{\glsunset{gf} \gls{gf} \glsreset{gf}}
+
+% document properties
+\def\Author{Florian Euchner (Jeija)}
+\def\Title{Sigfox Radio Protocol\\Overview and Specifications}
+\def\Version{Version 2018-12-27}
+\def\Keywords{Sigfox, IoT, Ultra, Narrow, Band, LP-WAN}
+
+% glossary
+\input{tex/acronyms}
+\makeglossaries
+
+\begin{document}
+	\hypersetup{
+		pdfauthor=Jeija,
+		pdftitle=\Title,
+		pdfsubject=\Version,
+		pdfkeywords=\Keywords 
+	}
+	\pagenumbering{Roman}
+
+	\include{tex/title}
+	\include{tex/abstract} 
+	\tableofcontents
+	\printacronyms[style=acrlong]
+	\include{tex/notations}
+
+	\newpage
+	\setcounter{page}{1}
+	\pagenumbering{arabic}
+	\ifthenelse{\equal{\figurename}{Abbildung}}{\bibliographystyle{tex/deIEEEtran}}
+	{\bibliographystyle{tex/IEEEtran}}
+
+	% chapters
+	\include{tex/introduction}
+	\include{tex/uplink}
+	\include{tex/downlink}
+	\include{tex/conclusion}
+	\include{tex/appendix}
+
+	\bibliography{tex/bib}
+\end{document}

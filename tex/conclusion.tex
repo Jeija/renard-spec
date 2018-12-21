@@ -1,0 +1,17 @@
+\chapter{Conclusion and Final Thoughts}
+\label{sec:conclusion}
+Sigfox's uplink and downlink have been successfully reconstructed to a point where all relevant communication between object and base station is understood.
+Both Sigfox object and base station can be emulated.
+With \texttt{librenard} and \texttt{renard}, a reference implementation of an alternative Sigfox network stack has been created and its functionality has been tested.
+Physical layer modulation and demodulation has been realized prototypically using an \gls{sdr} and python scripts.
+None of the aspects of the Sigfox protocol are novel per se, Sigfox's innovation lies in the combination of known technologies into a wireless communication standard and the business aspects of marketing an \gls{iot} network.
+
+All of Sigfox's claims regarding security-related aspects that were investigated were confirmed in a preliminary security analysis.
+It has been found that neither uplink nor downlink payloads are confidential, but that was also never promised by Sigfox.
+All in all, these results seem to be a good sign for the state of Sigfox security and can be seen as affirmation of the security-wise superiority of \gls{lpwan} networks in general and Sigfox in particular over traditional technologies like WiFi.
+Certainly, improvements upon the current state of affairs regarding confidentiality are possible.
+For example, the proposals in \cite{otpsecurity} include the use of \glspl{otp} for secure end-to-end encryption.
+
+Topics for further work might be the yet uninvestigated \gls{oob} uplink frame and the implementation of a Sigfox object based on dedicated, commercially available \gls{rf} chips for \gls{unb} communications such as the STMicroelectronics S2-LP or the Texas Instruments CC1125.
+An alternative implementation of a base station that is compatible with the Sigfox protocol might be also be of interest.
+If these two components were present, an open sourced implementation of an \gls{lpwan} network that operates in parallel to Sigfox, but that is based on the Sigfox technology could be realized.
