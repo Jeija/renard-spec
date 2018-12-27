@@ -35,5 +35,6 @@
 *.fls
 *.auxlock
 *.md5
+!fig/*.pdf
 .DS_Store
 external-figures
