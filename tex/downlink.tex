@@ -696,7 +696,7 @@ Again, through finding the right set of parameters to the \gls{crc} algorithm an
 \end{equation}
 
 The hexadecimal representation of this polynomial is \texttt{0x2f}.
-No different than the uplink's \gls{crc}, the downlink's \gls{crc} can be calculated according to \Cref{eq:crc_basic_equation} presented in the introduction to \gls{crc} arithmetic (\Cref{sec:uplink_crc_introduction}) with a subsequent bitwise \texttt{NOT} operation.
+Like the uplink's \gls{crc}, the downlink's \gls{crc} can be calculated according to \Cref{eq:crc_basic_equation} presented in the introduction to \gls{crc} arithmetic (\Cref{sec:uplink_crc_introduction}).
 
 The make-up of the message polynomial $M(X)$ is depicted in \Cref{fig:downlink_crc_computation}:
 The \gls{crc} checksum only depends on the constant-size contents of downlink payload and \gls{mac} tag.
@@ -731,13 +731,9 @@ The \gls{crc} checksum only depends on the constant-size contents of downlink pa
 		\node [rectangle, rounded corners = 3pt, fill = black!10!white, draw, thick, minimum width = 4cm, minimum height = 1.1cm] (crcfunction) at (30 * \pbitsize, \algoffsety) {\textbf{\texttt{\gls{crc}-8 ({\normalfont \ttfamily 0x2f})}}};
 		\draw [thick, -latex] (30 * \pbitsize, \pktoffsety - \lineheight) -- (crcfunction.north);
 
-		% bit flip operation
-		\node [rectangle, rounded corners = 3pt, fill = black!10!white, draw, thick, minimum width = 4cm, minimum height = 1.1cm, right = 1cm of crcfunction] (bitflip) {Bitwise \textbf{\texttt{NOT}}};
-		\draw [thick, -latex] (crcfunction.east) -- (bitflip.west);
-
 		% crc output
-		\node (tag) [right = 1cm of bitflip] {\gls{crc} checksum};
-		\draw [thick, -latex] (bitflip.east) -- (tag.west);
+		\node (tag) [right = 1cm of crcfunction] {\gls{crc} checksum};
+		\draw [thick, -latex] (crcfunction.east) -- (tag.west);
 	\end{tikzpicture}
 	\caption{Computation of the \gls{crc}-8 checksum depending on payload and \gls{mac} tag for a downlink packet}
 	\label{fig:downlink_crc_computation}
